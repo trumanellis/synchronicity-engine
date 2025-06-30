@@ -1,0 +1,138 @@
+// test/create-prayer.test.ts
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { startOrbitDB, stopOrbitDB } from '@orbitdb/liftoff'
+import { rimraf } from 'rimraf'
+import { createPrayer } from '../src/lib/synchronicity-engine'
+import type { PrayerDoc, BlessingDoc, AttentionSwitch } from '../src/lib/types'
+
+describe('Create Prayer Flow', () => {
+  let orbitdb: any
+  let databases: any
+
+  beforeEach(async () => {
+    // Start fresh OrbitDB instance
+    orbitdb = await startOrbitDB({ directory: './test-orbitdb' })
+    
+    // Create all required databases
+    databases = {
+      prayers: await orbitdb.open('test-prayers', { type: 'documents' }),
+      blessings: await orbitdb.open('test-blessings', { type: 'documents' }),
+      attentionSwitches: await orbitdb.open('test-attention', { type: 'events' })
+    }
+  })
+
+  afterEach(async () => {
+    if (orbitdb) {
+      await stopOrbitDB(orbitdb)
+    }
+    await rimraf('./test-orbitdb')
+    await rimraf('./test-ipfs')
+  })
+
+  it('should create a prayer with an active blessing and attention switch', async () => {
+    const userId = 'truman'
+    const prayerTitle = 'Clear invasive eucalyptus from the mountain peak'
+    const timestamp = Date.now()
+    
+    // Execute the create prayer flow
+    const result = await createPrayer({
+      userId,
+      title: prayerTitle,
+      databases,
+      timestamp
+    })
+
+    expect(result).toBeDefined()
+    expect(result.prayerId).toMatch(/^prayer_/)
+    expect(result.blessingId).toMatch(/^blessing_/)
+    expect(result.attentionIndex).toBe(0) // First attention switch for this user
+
+    // Verify Prayer was created correctly
+    const prayerEntry = await databases.prayers.get(result.prayerId)
+    expect(prayerEntry).toBeDefined()
+    
+    const prayer: PrayerDoc = prayerEntry.value
+    expect(prayer.title).toBe(prayerTitle)
+    expect(prayer.status).toBe('open')
+    expect(prayer.createdBy).toBe(userId)
+    expect(prayer.blessings).toContain(result.blessingId)
+    expect(prayer.proofsOfService).toHaveLength(0)
+    expect(prayer.attachedTokens).toHaveLength(0)
+
+    // Verify Blessing was created correctly
+    const blessingEntry = await databases.blessings.get(result.blessingId)
+    expect(blessingEntry).toBeDefined()
+    
+    const blessing: BlessingDoc = blessingEntry.value
+    expect(blessing.userId).toBe(userId)
+    expect(blessing.prayerId).toBe(result.prayerId)
+    expect(blessing.attentionIndex).toBe(0)
+    expect(blessing.status).toBe('active') // Currently accumulating time
+    expect(blessing.stewardId).toBe(userId)
+    expect(blessing.timestamp).toBe(timestamp)
+    expect(blessing.content).toBe('') // Empty on creation
+
+    // Verify AttentionSwitch was logged
+    const allSwitches = []
+    for await (const entry of databases.attentionSwitches.iterator()) {
+      allSwitches.push(entry.value)
+    }
+    
+    expect(allSwitches).toHaveLength(1)
+    const attentionSwitch: AttentionSwitch = allSwitches[0]
+    expect(attentionSwitch.userId).toBe(userId)
+    expect(attentionSwitch.prayerId).toBe(result.prayerId)
+    expect(attentionSwitch.timestamp).toBe(timestamp)
+  })
+
+  it('should handle multiple prayers from same user with correct attention indices', async () => {
+    const userId = 'truman'
+    
+    // Create first prayer
+    const result1 = await createPrayer({
+      userId,
+      title: 'First prayer',
+      databases,
+      timestamp: 1000
+    })
+    
+    expect(result1.attentionIndex).toBe(0)
+
+    // Create second prayer (simulates attention switch)
+    const result2 = await createPrayer({
+      userId,
+      title: 'Second prayer',
+      databases,
+      timestamp: 2000
+    })
+    
+    expect(result2.attentionIndex).toBe(1)
+
+    // Verify first blessing is now 'potential' (not active)
+    const blessing1Entry = await databases.blessings.get(result1.blessingId)
+    expect(blessing1Entry.value.status).toBe('potential')
+
+    // Verify second blessing is 'active'
+    const blessing2Entry = await databases.blessings.get(result2.blessingId)
+    expect(blessing2Entry.value.status).toBe('active')
+
+    // Verify we have 2 attention switches
+    const allSwitches = []
+    for await (const entry of databases.attentionSwitches.iterator()) {
+      allSwitches.push(entry.value)
+    }
+    expect(allSwitches).toHaveLength(2)
+  })
+
+  it('should generate unique IDs with user prefix', async () => {
+    const result = await createPrayer({
+      userId: 'alice',
+      title: 'Test prayer',
+      databases,
+      timestamp: Date.now()
+    })
+
+    expect(result.prayerId).toMatch(/^prayer_\d+$/)
+    expect(result.blessingId).toMatch(/^blessing_alice_\d+$/)
+  })
+})
