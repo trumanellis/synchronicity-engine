@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { startOrbitDB, stopOrbitDB } from '@orbitdb/liftoff'
 import { rimraf } from 'rimraf'
 import { 
-  createPrayer,
+  setIntention,
   switchAttention,
   createOffering,
   bidOnOffering,
@@ -20,7 +20,7 @@ describe('Create Offering', () => {
     orbitdb = await startOrbitDB({ directory: './test-orbitdb' })
     
     databases = {
-      prayers: await orbitdb.open('test-prayers', { type: 'documents' }),
+      intentions: await orbitdb.open('test-intentions', { type: 'documents' }),
       blessings: await orbitdb.open('test-blessings', { type: 'documents' }),
       attentionSwitches: await orbitdb.open('test-attention', { type: 'events' }),
       offerings: await orbitdb.open('test-offerings', { type: 'documents' })
@@ -65,7 +65,7 @@ describe('Create Offering', () => {
 
   it('should allow bidding with token baskets', async () => {
     // Create tokens to bid with
-    const bidder1 = await createPrayer({
+    const bidder1 = await setIntention({
       userId: 'rafael',
       title: 'Work 1',
       databases,
@@ -74,7 +74,7 @@ describe('Create Offering', () => {
     
     await switchAttention({
       userId: 'rafael',
-      toPrayerId: 'other',
+      toIntentionId: 'other',
       databases,
       timestamp: 3_600_000 // 1 hour
     })
@@ -126,7 +126,7 @@ describe('Create Offering', () => {
 
     // Create tokens and place bids
     for (const bidder of bidders) {
-      const prayer = await createPrayer({
+      const intention = await setIntention({
         userId: bidder.userId,
         title: `${bidder.userId} work`,
         databases,
@@ -135,7 +135,7 @@ describe('Create Offering', () => {
 
       await switchAttention({
         userId: bidder.userId,
-        toPrayerId: 'other',
+        toIntentionId: 'other',
         databases,
         timestamp: bidder.duration
       })
@@ -143,7 +143,7 @@ describe('Create Offering', () => {
       await bidOnOffering({
         offeringId: offering.offeringId,
         userId: bidder.userId,
-        topTokenId: prayer.blessingId,
+        topTokenId: intention.blessingId,
         databases
       })
     }
@@ -173,7 +173,7 @@ describe('Create Offering', () => {
     // Create 3 bidders
     const bidders = []
     for (let i = 0; i < 3; i++) {
-      const prayer = await createPrayer({
+      const intention = await setIntention({
         userId: `bidder${i}`,
         title: `Work ${i}`,
         databases,
@@ -182,7 +182,7 @@ describe('Create Offering', () => {
 
       await switchAttention({
         userId: `bidder${i}`,
-        toPrayerId: 'other',
+        toIntentionId: 'other',
         databases,
         timestamp: i * 1000 + (i + 1) * 1_800_000 // Varying durations
       })
@@ -190,13 +190,13 @@ describe('Create Offering', () => {
       await bidOnOffering({
         offeringId: offering.offeringId,
         userId: `bidder${i}`,
-        topTokenId: prayer.blessingId,
+        topTokenId: intention.blessingId,
         databases
       })
 
       bidders.push({
         userId: `bidder${i}`,
-        blessingId: prayer.blessingId
+        blessingId: intention.blessingId
       })
     }
 
@@ -226,7 +226,7 @@ describe('Create Offering', () => {
 
   it('should handle token trees in bids', async () => {
     // Create parent token with children
-    const parent = await createPrayer({
+    const parent = await setIntention({
       userId: 'parent_user',
       title: 'Parent work',
       databases,
@@ -235,13 +235,13 @@ describe('Create Offering', () => {
 
     await switchAttention({
       userId: 'parent_user',
-      toPrayerId: 'other',
+      toIntentionId: 'other',
       databases,
       timestamp: 1_800_000 // 30 min
     })
 
     // Create child tokens
-    const child1 = await createPrayer({
+    const child1 = await setIntention({
       userId: 'child_user_1',
       title: 'Child work 1',
       databases,
@@ -250,7 +250,7 @@ describe('Create Offering', () => {
 
     await switchAttention({
       userId: 'child_user_1',
-      toPrayerId: 'other',
+      toIntentionId: 'other',
       databases,
       timestamp: 2_600_000 // 10 min
     })

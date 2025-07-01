@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { startOrbitDB, stopOrbitDB } from '@orbitdb/liftoff'
 import { rimraf } from 'rimraf'
 import { 
-  createPrayer, 
+  setIntention, 
   switchAttention, 
   calculateBlessingDuration,
   getUserAttentionHistory 
@@ -17,7 +17,7 @@ describe('Calculate Duration', () => {
     orbitdb = await startOrbitDB({ directory: './test-orbitdb' })
     
     databases = {
-      prayers: await orbitdb.open('test-prayers', { type: 'documents' }),
+      intentions: await orbitdb.open('test-intentions', { type: 'documents' }),
       blessings: await orbitdb.open('test-blessings', { type: 'documents' }),
       attentionSwitches: await orbitdb.open('test-attention', { type: 'events' })
     }
@@ -34,8 +34,8 @@ describe('Calculate Duration', () => {
   it('should calculate duration for a completed blessing', async () => {
     const userId = 'truman'
     
-    // Create prayer at 10:00 (0ms)
-    const prayer1 = await createPrayer({
+    // Create intention at 10:00 (0ms)
+    const intention1 = await setIntention({
       userId,
       title: 'Morning meditation',
       databases,
@@ -45,14 +45,14 @@ describe('Calculate Duration', () => {
     // Switch attention at 10:30 (30 minutes = 1,800,000ms)
     await switchAttention({
       userId,
-      toPrayerId: 'prayer_other',
+      toIntentionId: 'intention_other',
       databases,
       timestamp: 1_800_000
     })
 
     // Calculate duration of first blessing
     const duration = await calculateBlessingDuration({
-      blessingId: prayer1.blessingId,
+      blessingId: intention1.blessingId,
       userId,
       databases
     })
@@ -64,17 +64,17 @@ describe('Calculate Duration', () => {
     const userId = 'alice'
     const startTime = Date.now() - 600_000 // 10 minutes ago
     
-    // Create prayer 10 minutes ago
-    const prayer = await createPrayer({
+    // Create intention 10 minutes ago
+    const intention = await setIntention({
       userId,
-      title: 'Active prayer',
+      title: 'Active intention',
       databases,
       timestamp: startTime
     })
 
     // Calculate duration (should use current time as end)
     const duration = await calculateBlessingDuration({
-      blessingId: prayer.blessingId,
+      blessingId: intention.blessingId,
       userId,
       databases
     })
@@ -87,37 +87,37 @@ describe('Calculate Duration', () => {
   it('should calculate duration for blessing with specific attention index', async () => {
     const userId = 'poet'
     
-    // Create timeline: prayer1 (5min) -> prayer2 (10min) -> prayer1 again (15min)
-    const prayer1 = await createPrayer({
+    // Create timeline: intention1 (5min) -> intention2 (10min) -> intention1 again (15min)
+    const intention1 = await setIntention({
       userId,
-      title: 'First prayer',
+      title: 'First intention',
       databases,
       timestamp: 0
     })
 
-    const prayer2 = await createPrayer({
+    const intention2 = await setIntention({
       userId,
-      title: 'Second prayer',
+      title: 'Second intention',
       databases,
       timestamp: 300_000 // 5 minutes
     })
 
     const result = await switchAttention({
       userId,
-      toPrayerId: prayer1.prayerId,
+      toIntentionId: intention1.intentionId,
       databases,
       timestamp: 900_000 // 15 minutes total
     })
 
     // Calculate durations
     const duration1 = await calculateBlessingDuration({
-      blessingId: prayer1.blessingId,
+      blessingId: intention1.blessingId,
       userId,
       databases
     })
     
     const duration2 = await calculateBlessingDuration({
-      blessingId: prayer2.blessingId,
+      blessingId: intention2.blessingId,
       userId,
       databases
     })
@@ -138,21 +138,21 @@ describe('Calculate Duration', () => {
     const userId = 'historian'
     
     // Create events out of chronological order
-    const prayer3 = await createPrayer({
+    const intention3 = await setIntention({
       userId,
       title: 'Third',
       databases,
       timestamp: 3000
     })
 
-    const prayer1 = await createPrayer({
+    const intention1 = await setIntention({
       userId,
       title: 'First',
       databases,
       timestamp: 1000
     })
 
-    const prayer2 = await createPrayer({
+    const intention2 = await setIntention({
       userId,
       title: 'Second', 
       databases,
@@ -169,37 +169,37 @@ describe('Calculate Duration', () => {
     expect(history[1].timestamp).toBe(2000)
     expect(history[2].timestamp).toBe(3000)
     
-    // Prayer IDs are based on timestamp, so:
-    expect(history[0].prayerId).toBe('prayer_1000')
-    expect(history[1].prayerId).toBe('prayer_2000')
-    expect(history[2].prayerId).toBe('prayer_3000')
+    // Intention IDs are based on timestamp, so:
+    expect(history[0].intentionId).toBe('intention_1000')
+    expect(history[1].intentionId).toBe('intention_2000')
+    expect(history[2].intentionId).toBe('intention_3000')
   })
 
   it('should handle blessings with no duration (edge case)', async () => {
     const userId = 'edgecase'
     
-    // Create a prayer but don't switch attention
-    const prayer = await createPrayer({
+    // Create an intention but don't switch attention
+    const intention = await setIntention({
       userId,
-      title: 'No duration prayer',
+      title: 'No duration intention',
       databases,
       timestamp: 1000
     })
 
     // Manually set blessing to potential with same timestamp
-    const blessing = await databases.blessings.get(prayer.blessingId)
+    const blessing = await databases.blessings.get(intention.blessingId)
     blessing.value.status = 'potential'
     await databases.blessings.put(blessing.value)
 
     // Add another attention switch at exact same time
     await databases.attentionSwitches.add({
       userId,
-      prayerId: 'other',
+      intentionId: 'other',
       timestamp: 1000
     })
 
     const duration = await calculateBlessingDuration({
-      blessingId: prayer.blessingId,
+      blessingId: intention.blessingId,
       userId,
       databases
     })

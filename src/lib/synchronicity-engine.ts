@@ -1,27 +1,27 @@
 // src/lib/synchronicity-engine.ts
 import type { 
-  PrayerDoc, 
+  IntentionDoc, 
   BlessingDoc, 
   AttentionSwitch, 
   Databases 
 } from './types'
 
-interface CreatePrayerParams {
+interface SetIntentionParams {
   userId: string
   title: string
   databases: Databases
   timestamp?: number
 }
 
-interface CreatePrayerResult {
-  prayerId: string
+interface SetIntentionResult {
+  intentionId: string
   blessingId: string
   attentionIndex: number
 }
 
 interface SwitchAttentionParams {
   userId: string
-  toPrayerId: string
+  toIntentionId: string
   databases: Databases
   timestamp?: number
   blessingContent?: string
@@ -46,7 +46,7 @@ interface GetAttentionHistoryParams {
 }
 
 interface PostProofParams {
-  prayerId: string
+  intentionId: string
   by: string[]
   content: string
   media: string[]
@@ -75,12 +75,12 @@ interface AssignBlessingResult {
 
 interface AttachTokenParams {
   tokenId: string
-  prayerId: string
+  intentionId: string
   databases: Databases
 }
 
 interface CalculatePotentialParams {
-  prayerId: string
+  intentionId: string
   databases: Databases
   currentTime?: number
   includeChildren?: boolean
@@ -126,24 +126,24 @@ interface AcceptBidsResult {
 }
 
 /**
- * Creates a new Prayer with an initial Blessing and logs the attention switch.
+ * Sets a new Intention with an initial Blessing and logs the attention switch.
  * This is the foundational action in the Synchronicity Engine.
  * 
  * Flow:
- * 1. Create Prayer document
+ * 1. Create Intention document
  * 2. Log AttentionSwitch event 
  * 3. Create active Blessing pointing to the attention index
- * 4. Update Prayer with blessing reference
+ * 4. Update Intention with blessing reference
  */
-export async function createPrayer({
+export async function setIntention({
   userId,
   title,
   databases,
   timestamp = Date.now()
-}: CreatePrayerParams): Promise<CreatePrayerResult> {
+}: SetIntentionParams): Promise<SetIntentionResult> {
   
   // Generate IDs
-  const prayerId = `prayer_${timestamp}`
+  const intentionId = `intention_${timestamp}`
   const blessingId = `blessing_${userId}_${timestamp}`
   
   // Get user's attention history to find their current index
@@ -169,9 +169,9 @@ export async function createPrayer({
     }
   }
   
-  // Step 1: Create Prayer
-  const prayer: PrayerDoc = {
-    _id: prayerId,
+  // Step 1: Create Intention
+  const intention: IntentionDoc = {
+    _id: intentionId,
     title,
     blessings: [], // Will be updated after blessing creation
     proofsOfService: [],
@@ -181,12 +181,12 @@ export async function createPrayer({
     createdAt: timestamp
   }
   
-  await databases.prayers.put(prayer)
+  await databases.intentions.put(intention)
   
   // Step 2: Log AttentionSwitch
   const attentionSwitch: AttentionSwitch = {
     userId,
-    prayerId,
+    intentionId,
     timestamp
   }
   
@@ -196,7 +196,7 @@ export async function createPrayer({
   const blessing: BlessingDoc = {
     _id: blessingId,
     userId,
-    prayerId,
+    intentionId,
     attentionIndex,
     content: '', // Empty initially, user can add text later
     timestamp,
@@ -206,27 +206,27 @@ export async function createPrayer({
   
   await databases.blessings.put(blessing)
   
-  // Step 4: Update Prayer with blessing reference
-  prayer.blessings.push(blessingId)
-  await databases.prayers.put(prayer)
+  // Step 4: Update Intention with blessing reference
+  intention.blessings.push(blessingId)
+  await databases.intentions.put(intention)
   
   return {
-    prayerId,
+    intentionId,
     blessingId,
     attentionIndex
   }
 }
 
 /**
- * Switches user's attention to a different prayer.
+ * Switches user's attention to a different intention.
  * - Marks previous blessing as 'potential'
  * - Creates new AttentionSwitch event
- * - Creates new active blessing for the target prayer
+ * - Creates new active blessing for the target intention
  * - Optionally updates previous blessing's content
  */
 export async function switchAttention({
   userId,
-  toPrayerId,
+  toIntentionId,
   databases,
   timestamp = Date.now(),
   blessingContent
@@ -267,17 +267,17 @@ export async function switchAttention({
   // Log new attention switch
   const attentionSwitch: AttentionSwitch = {
     userId,
-    prayerId: toPrayerId,
+    intentionId: toIntentionId,
     timestamp
   }
   await databases.attentionSwitches.add(attentionSwitch)
   
-  // Create new blessing for the target prayer
+  // Create new blessing for the target intention
   const newBlessingId = `blessing_${userId}_${timestamp}`
   const newBlessing: BlessingDoc = {
     _id: newBlessingId,
     userId,
-    prayerId: toPrayerId,
+    intentionId: toIntentionId,
     attentionIndex,
     content: '', // Will be filled when switching away
     timestamp,
@@ -286,12 +286,12 @@ export async function switchAttention({
   }
   await databases.blessings.put(newBlessing)
   
-  // Update the prayer to include this blessing
-  const prayerEntry = await databases.prayers.get(toPrayerId)
-  if (prayerEntry) {
-    const prayer: PrayerDoc = prayerEntry.value
-    prayer.blessings.push(newBlessingId)
-    await databases.prayers.put(prayer)
+  // Update the intention to include this blessing
+  const intentionEntry = await databases.intentions.get(toIntentionId)
+  if (intentionEntry) {
+    const intention: IntentionDoc = intentionEntry.value
+    intention.blessings.push(newBlessingId)
+    await databases.intentions.put(intention)
   }
   
   return {
@@ -360,11 +360,11 @@ export async function calculateBlessingDuration({
 }
 
 /**
- * Posts a proof of service for a prayer.
+ * Posts a proof of service for an intention.
  * This triggers the ability to assign blessings to service providers.
  */
 export async function postProofOfService({
-  prayerId,
+  intentionId,
   by,
   content,
   media,
@@ -377,7 +377,7 @@ export async function postProofOfService({
   // Create proof document
   const proof: ProofDoc = {
     _id: proofId,
-    prayerId,
+    intentionId,
     by,
     content,
     media,
@@ -387,12 +387,12 @@ export async function postProofOfService({
   // Add to events log
   const hash = await databases.proofsOfService.add(proof)
   
-  // Update prayer to reference this proof
-  const prayerEntry = await databases.prayers.get(prayerId)
-  if (prayerEntry) {
-    const prayer: PrayerDoc = prayerEntry.value
-    prayer.proofsOfService.push(proofId)
-    await databases.prayers.put(prayer)
+  // Update intention to reference this proof
+  const intentionEntry = await databases.intentions.get(intentionId)
+  if (intentionEntry) {
+    const intention: IntentionDoc = intentionEntry.value
+    intention.proofsOfService.push(proofId)
+    await databases.intentions.put(intention)
   }
   
   return {
@@ -449,49 +449,49 @@ export async function assignBlessing({
 }
 
 /**
- * Attaches a blessing token to a prayer as a boost.
- * This allows accumulated gratitude to support new prayers.
+ * Attaches a blessing token to an intention as a boost.
+ * This allows accumulated gratitude to support new intentions.
  */
-export async function attachTokenToPrayer({
+export async function attachTokenToIntention({
   tokenId,
-  prayerId,
+  intentionId,
   databases
 }: AttachTokenParams): Promise<void> {
   
-  const prayerEntry = await databases.prayers.get(prayerId)
-  if (!prayerEntry) {
-    throw new Error(`Prayer ${prayerId} not found`)
+  const intentionEntry = await databases.intentions.get(intentionId)
+  if (!intentionEntry) {
+    throw new Error(`Intention ${intentionId} not found`)
   }
   
-  const prayer: PrayerDoc = prayerEntry.value
-  prayer.attachedTokens.push(tokenId)
-  await databases.prayers.put(prayer)
+  const intention: IntentionDoc = intentionEntry.value
+  intention.attachedTokens.push(tokenId)
+  await databases.intentions.put(intention)
 }
 
 /**
- * Calculates the total gratitude potential of a prayer.
+ * Calculates the total gratitude potential of an intention.
  * Includes:
  * - Live blessings (active + potential status)
  * - Attached token boosts
  * - Optionally includes children of attached tokens
  */
 export async function calculateGratitudePotential({
-  prayerId,
+  intentionId,
   databases,
   currentTime = Date.now(),
   includeChildren = true
 }: CalculatePotentialParams): Promise<number> {
   
-  const prayerEntry = await databases.prayers.get(prayerId)
-  if (!prayerEntry) {
-    throw new Error(`Prayer ${prayerId} not found`)
+  const intentionEntry = await databases.intentions.get(intentionId)
+  if (!intentionEntry) {
+    throw new Error(`Intention ${intentionId} not found`)
   }
   
-  const prayer: PrayerDoc = prayerEntry.value
+  const intention: IntentionDoc = intentionEntry.value
   let totalPotential = 0
   
   // Calculate potential from direct blessings
-  for (const blessingId of prayer.blessings) {
+  for (const blessingId of intention.blessings) {
     const blessingEntry = await databases.blessings.get(blessingId)
     if (!blessingEntry) continue
     
@@ -510,7 +510,7 @@ export async function calculateGratitudePotential({
   }
   
   // Calculate potential from attached tokens
-  for (const tokenId of prayer.attachedTokens) {
+  for (const tokenId of intention.attachedTokens) {
     totalPotential += await calculateTokenTreeDuration({
       tokenId,
       databases,
@@ -749,7 +749,7 @@ async function transferTokenTree({
   const updatedBlessing: BlessingDoc = {
     _id: blessing._id,
     userId: blessing.userId,
-    prayerId: blessing.prayerId,
+    intentionId: blessing.intentionId,
     attentionIndex: blessing.attentionIndex,
     content: blessing.content,
     timestamp: blessing.timestamp,

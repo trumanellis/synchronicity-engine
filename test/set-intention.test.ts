@@ -1,11 +1,11 @@
-// test/create-prayer.test.ts
+// test/set-intention.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { startOrbitDB, stopOrbitDB } from '@orbitdb/liftoff'
 import { rimraf } from 'rimraf'
-import { createPrayer } from '../src/lib/synchronicity-engine'
-import type { PrayerDoc, BlessingDoc, AttentionSwitch } from '../src/lib/types'
+import { setIntention } from '../src/lib/synchronicity-engine'
+import type { IntentionDoc, BlessingDoc, AttentionSwitch } from '../src/lib/types'
 
-describe('Create Prayer Flow', () => {
+describe('Set Intention Flow', () => {
   let orbitdb: any
   let databases: any
 
@@ -15,7 +15,7 @@ describe('Create Prayer Flow', () => {
     
     // Create all required databases
     databases = {
-      prayers: await orbitdb.open('test-prayers', { type: 'documents' }),
+      intentions: await orbitdb.open('test-intentions', { type: 'documents' }),
       blessings: await orbitdb.open('test-blessings', { type: 'documents' }),
       attentionSwitches: await orbitdb.open('test-attention', { type: 'events' })
     }
@@ -29,35 +29,35 @@ describe('Create Prayer Flow', () => {
     await rimraf('./test-ipfs')
   })
 
-  it('should create a prayer with an active blessing and attention switch', async () => {
+  it('should set an intention with an active blessing and attention switch', async () => {
     const userId = 'truman'
-    const prayerTitle = 'Clear invasive eucalyptus from the mountain peak'
+    const intentionTitle = 'Clear invasive eucalyptus from the mountain peak'
     const timestamp = Date.now()
     
-    // Execute the create prayer flow
-    const result = await createPrayer({
+    // Execute the set intention flow
+    const result = await setIntention({
       userId,
-      title: prayerTitle,
+      title: intentionTitle,
       databases,
       timestamp
     })
 
     expect(result).toBeDefined()
-    expect(result.prayerId).toMatch(/^prayer_/)
+    expect(result.intentionId).toMatch(/^intention_/)
     expect(result.blessingId).toMatch(/^blessing_/)
     expect(result.attentionIndex).toBe(0) // First attention switch for this user
 
-    // Verify Prayer was created correctly
-    const prayerEntry = await databases.prayers.get(result.prayerId)
-    expect(prayerEntry).toBeDefined()
+    // Verify Intention was created correctly
+    const intentionEntry = await databases.intentions.get(result.intentionId)
+    expect(intentionEntry).toBeDefined()
     
-    const prayer: PrayerDoc = prayerEntry.value
-    expect(prayer.title).toBe(prayerTitle)
-    expect(prayer.status).toBe('open')
-    expect(prayer.createdBy).toBe(userId)
-    expect(prayer.blessings).toContain(result.blessingId)
-    expect(prayer.proofsOfService).toHaveLength(0)
-    expect(prayer.attachedTokens).toHaveLength(0)
+    const intention: IntentionDoc = intentionEntry.value
+    expect(intention.title).toBe(intentionTitle)
+    expect(intention.status).toBe('open')
+    expect(intention.createdBy).toBe(userId)
+    expect(intention.blessings).toContain(result.blessingId)
+    expect(intention.proofsOfService).toHaveLength(0)
+    expect(intention.attachedTokens).toHaveLength(0)
 
     // Verify Blessing was created correctly
     const blessingEntry = await databases.blessings.get(result.blessingId)
@@ -65,7 +65,7 @@ describe('Create Prayer Flow', () => {
     
     const blessing: BlessingDoc = blessingEntry.value
     expect(blessing.userId).toBe(userId)
-    expect(blessing.prayerId).toBe(result.prayerId)
+    expect(blessing.intentionId).toBe(result.intentionId)
     expect(blessing.attentionIndex).toBe(0)
     expect(blessing.status).toBe('active') // Currently accumulating time
     expect(blessing.stewardId).toBe(userId)
@@ -81,27 +81,27 @@ describe('Create Prayer Flow', () => {
     expect(allSwitches).toHaveLength(1)
     const attentionSwitch: AttentionSwitch = allSwitches[0]
     expect(attentionSwitch.userId).toBe(userId)
-    expect(attentionSwitch.prayerId).toBe(result.prayerId)
+    expect(attentionSwitch.intentionId).toBe(result.intentionId)
     expect(attentionSwitch.timestamp).toBe(timestamp)
   })
 
-  it('should handle multiple prayers from same user with correct attention indices', async () => {
+  it('should handle multiple intentions from same user with correct attention indices', async () => {
     const userId = 'truman'
     
-    // Create first prayer
-    const result1 = await createPrayer({
+    // Create first intention
+    const result1 = await setIntention({
       userId,
-      title: 'First prayer',
+      title: 'First intention',
       databases,
       timestamp: 1000
     })
     
     expect(result1.attentionIndex).toBe(0)
 
-    // Create second prayer (simulates attention switch)
-    const result2 = await createPrayer({
+    // Create second intention (simulates attention switch)
+    const result2 = await setIntention({
       userId,
-      title: 'Second prayer',
+      title: 'Second intention',
       databases,
       timestamp: 2000
     })
@@ -125,14 +125,14 @@ describe('Create Prayer Flow', () => {
   })
 
   it('should generate unique IDs with user prefix', async () => {
-    const result = await createPrayer({
+    const result = await setIntention({
       userId: 'alice',
-      title: 'Test prayer',
+      title: 'Test intention',
       databases,
       timestamp: Date.now()
     })
 
-    expect(result.prayerId).toMatch(/^prayer_\d+$/)
+    expect(result.intentionId).toMatch(/^intention_\d+$/)
     expect(result.blessingId).toMatch(/^blessing_alice_\d+$/)
   })
 })

@@ -4,8 +4,8 @@
    Synchronicity Engine · Core Data Types
    ============================================================ */
 
-export interface PrayerDoc {
-  _id: string;                     // "prayer_001" - OrbitDB requires _id
+export interface IntentionDoc {
+  _id: string;                     // "intention_001" - OrbitDB requires _id
   title: string;
   blessings: string[];             // ordered Blessing IDs
   proofsOfService: string[];       // Proof IDs
@@ -18,7 +18,7 @@ export interface PrayerDoc {
 export interface BlessingDoc {
   _id: string;                     // "blessing_truman_001" - OrbitDB requires _id
   userId: string;                  // author
-  prayerId: string;
+  intentionId: string;
   attentionIndex: number;          // Single index into user's attention log
   content: string;                 // text of the blessing
   timestamp: number;               // when attention started
@@ -31,7 +31,7 @@ export interface BlessingDoc {
 
 export interface ProofDoc {
   _id: string;                     // "proof_abc" - OrbitDB requires _id
-  prayerId: string;
+  intentionId: string;
   by: string[];                    // userIds
   content: string;
   media: string[];                 // IPFS / URL list
@@ -40,7 +40,7 @@ export interface ProofDoc {
 
 export interface AttentionSwitch {
   userId: string;
-  prayerId: string;
+  intentionId: string;
   timestamp: number;
 }
 
@@ -92,7 +92,7 @@ export interface SubStewardAssignment {
 
 // Database collection type mapping
 export interface Databases {
-  prayers: any;           // Documents DB
+  intentions: any;        // Documents DB
   blessings: any;         // Documents DB
   offerings: any;         // Documents DB
   artifacts: any;         // Documents DB
