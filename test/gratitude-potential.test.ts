@@ -50,7 +50,8 @@ describe('Gratitude Potential', () => {
       userId,
       toIntentionId: 'other_intention',
       databases,
-      timestamp: 1_800_000 // 30 minutes
+      timestamp: 1_800_000, // 30 minutes
+      blessingContent: 'Spent 30 minutes clearing mountain paths'
     })
 
     // Calculate potential (should be 30 minutes)
@@ -75,7 +76,8 @@ describe('Gratitude Potential', () => {
       userId: 'alice',
       toIntentionId: 'other',
       databases,
-      timestamp: 1_200_000 // 20 minutes
+      timestamp: 1_200_000, // 20 minutes
+      blessingContent: 'Worked on community garden planning for 20 minutes'
     })
 
     // User 2 blesses for 15 minutes
@@ -90,7 +92,8 @@ describe('Gratitude Potential', () => {
       userId: 'bob',
       toIntentionId: 'other',
       databases,
-      timestamp: 2_900_000 // 15 minutes later
+      timestamp: 2_900_000, // 15 minutes later
+      blessingContent: 'Contributed 15 minutes to garden design'
     })
 
     // Total should be 35 minutes
@@ -123,7 +126,8 @@ describe('Gratitude Potential', () => {
       userId: 'helper',
       toIntentionId: 'other',
       databases,
-      timestamp: 3_601_000 // 1 hour later
+      timestamp: 3_601_000, // 1 hour later
+      blessingContent: 'Completed 1 hour of previous help work'
     })
 
     // Attach the blessing as a boost token
@@ -138,7 +142,8 @@ describe('Gratitude Potential', () => {
       userId: 'organizer',
       toIntentionId: 'other',
       databases,
-      timestamp: 600_000 // 10 minutes
+      timestamp: 600_000, // 10 minutes
+      blessingContent: 'Organized project structure for 10 minutes'
     })
 
     // Total should be 1 hour 10 minutes
@@ -167,7 +172,8 @@ describe('Gratitude Potential', () => {
       userId: creatorId,
       toIntentionId: 'other',
       databases,
-      timestamp: 1_800_000
+      timestamp: 1_800_000,
+      blessingContent: 'Spent 30 minutes working on help request'
     })
 
     // Post proof and assign blessing
@@ -208,7 +214,8 @@ describe('Gratitude Potential', () => {
       userId: 'alice',
       toIntentionId: 'other',
       databases,
-      timestamp: 3_600_000 // 1 hour
+      timestamp: 3_600_000, // 1 hour
+      blessingContent: 'Completed 1 hour of parent work'
     })
 
     // Create child token (30 minutes)
@@ -223,7 +230,8 @@ describe('Gratitude Potential', () => {
       userId: 'bob', 
       toIntentionId: 'other',
       databases,
-      timestamp: 5_800_000 // 30 minutes later
+      timestamp: 5_800_000, // 30 minutes later
+      blessingContent: 'Finished 30 minutes of child work'
     })
 
     // Make child a child of parent

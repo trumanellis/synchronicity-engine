@@ -1,0 +1,101 @@
+{
+  "intentionsDB": [
+    {
+      "_id": "intention_001",
+      "title": "Clear invasive eucalyptus from the mountain peak",
+      "blessings": ["blessing_truman_001"],
+      "proofsOfService": [],
+      "attachedTokens": [],
+      "status": "open",
+      "createdBy": "truman",
+      "createdAt": 1719304800000
+    },
+    {
+      "_id": "intention_002",
+      "title": "Repair ridge fencing",
+      "blessings": [],
+      "proofsOfService": [],
+      "attachedTokens": [],
+      "status": "open",
+      "createdBy": "truman",
+      "createdAt": 1719312000000
+    }
+  ],
+
+  "blessingsDB": [
+    {
+      "_id": "blessing_truman_001",
+      "userId": "truman",
+      "intentionId": "intention_001",
+      "attentionIndex": 0,
+      "content": "The ridgeline could carry almonds again. But first, the invaders must go.",
+      "timestamp": 1719304800000,
+      "status": "potential",
+      "stewardId": "truman"
+    }
+  ],
+
+  "proofsOfServiceDB": [
+    {
+      "_id": "proof_001",
+      "intentionId": "intention_001",
+      "by": ["john", "freya"],
+      "content": "Cleared weeds and mulched paths.",
+      "media": ["ipfs://QmProofImage"],
+      "timestamp": 1719391200000
+    }
+  ],
+
+  "attentionSwitchesDB": [
+    {
+      "userId": "truman",
+      "intentionId": "intention_001",
+      "timestamp": 1719304800000
+    },
+    {
+      "userId": "truman",
+      "intentionId": "intention_002",
+      "timestamp": 1719318300000
+    }
+  ],
+
+  "offeringsDB": [
+    {
+      "_id": "offering_001",
+      "title": "Yoga in the Temple",
+      "description": "Grounding Hatha practice at Agua Lila.",
+      "time": "2025-06-21T10:00:00+01:00",
+      "place": "Agua Lila Upper Temple Deck",
+      "slotsAvailable": 10,
+      "tokenOffers": [],
+      "selectedStewards": [],
+      "status": "open"
+    }
+  ],
+
+  "artifactsDB": [
+    {
+      "_id": "artifact_temple_agua_lila",
+      "name": "Temple of Água Lila",
+      "stewardId": "truman",
+      "location": { "lat": 40.7431, "lon": -8.0734, "radius_km": 20 },
+      "ethicsCode": "Respect the space, leave no trace.",
+      "accessType": "by_request"
+    }
+  ],
+
+  "subStewardRequestsDB": [
+    {
+      "artifactId": "artifact_temple_agua_lila",
+      "requestedBy": "rafael",
+      "start": "2025-07-06T15:00:00Z",
+      "end": "2025-07-06T22:00:00Z",
+      "gratitudeOffering": ["tok_rafael_parent"],
+      "intent": "Ecstatic Dance Ceremony",
+      "agreementToEthics": true,
+      "timestamp": 1719420000000
+    }
+  ],
+
+  "subStewardAssignmentsDB": []
+}

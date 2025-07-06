@@ -18,7 +18,7 @@ npm run preview    # Preview production build
 The **Synchronicity Engine** is a decentralized attention and gratitude tracking system built on OrbitDB and IPFS. The core architecture consists of:
 
 ### Core Engine (`src/lib/synchronicity-engine.ts`)
-- **Attention Management**: Intention setting, attention switching, blessing lifecycle
+- **Attention Management**: Intention setting with blessing prompts, attention switching, blessing lifecycle
 - **Time Calculation**: Duration tracking, token tree calculations, gratitude potential
 - **Service Exchange**: Proof-of-service posting, blessing transfers, token attachments
 - **Marketplace Operations**: Offering creation, token-based bidding, automated winner selection

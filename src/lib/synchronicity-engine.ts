@@ -11,6 +11,7 @@ interface SetIntentionParams {
   title: string
   databases: Databases
   timestamp?: number
+  blessingContent?: string
 }
 
 interface SetIntentionResult {
@@ -129,17 +130,22 @@ interface AcceptBidsResult {
  * Sets a new Intention with an initial Blessing and logs the attention switch.
  * This is the foundational action in the Synchronicity Engine.
  * 
+ * If the user has a previous active blessing, it will be marked as 'potential'
+ * and optionally updated with blessing content to reflect on the completed work.
+ * 
  * Flow:
- * 1. Create Intention document
- * 2. Log AttentionSwitch event 
- * 3. Create active Blessing pointing to the attention index
- * 4. Update Intention with blessing reference
+ * 1. Mark previous active blessing as 'potential' and add blessing content (if any)
+ * 2. Create new Intention document
+ * 3. Log AttentionSwitch event 
+ * 4. Create active Blessing pointing to the attention index
+ * 5. Update Intention with blessing reference
  */
 export async function setIntention({
   userId,
   title,
   databases,
-  timestamp = Date.now()
+  timestamp = Date.now(),
+  blessingContent
 }: SetIntentionParams): Promise<SetIntentionResult> {
   
   // Generate IDs
@@ -155,15 +161,18 @@ export async function setIntention({
   }
   const attentionIndex = allSwitches.length
   
-  // If user has an active blessing, mark it as potential
+  // If user has an active blessing, mark it as potential and add content
   if (attentionIndex > 0) {
     // Find all user's blessings
     const allBlessings = await databases.blessings.all()
     for (const blessingEntry of allBlessings) {
       const blessing: BlessingDoc = blessingEntry.value
       if (blessing.userId === userId && blessing.status === 'active') {
-        // Update to potential status
+        // Update to potential status and add blessing content if provided
         blessing.status = 'potential'
+        if (blessingContent) {
+          blessing.content = blessingContent
+        }
         await databases.blessings.put(blessing)
       }
     }
@@ -783,4 +792,38 @@ async function transferTokenTree({
       })
     }
   }
+}
+
+/**
+ * Flattens a token tree into an array of token IDs.
+ * Prevents infinite recursion via visited set.
+ */
+export async function flattenTokenTree(
+  topTokenId: string,
+  blessingsDB: Databases['blessings'],
+  visited = new Set<string>()
+): Promise<string[]> {
+  if (visited.has(topTokenId)) return []
+  visited.add(topTokenId)
+
+  const tokenEntry = await blessingsDB.get(topTokenId)
+  if (!tokenEntry) return []
+  
+  const token: BlessingDoc = tokenEntry.value
+  const children = (token.children ?? []) as string[]
+  
+  const childResults = await Promise.all(
+    children.map(id => flattenTokenTree(id, blessingsDB, visited))
+  )
+  
+  return [topTokenId, ...childResults.flat()]
+}
+
+/**
+ * Formats milliseconds duration into human-readable "Xh Ym" format.
+ */
+export function formatDuration(ms: number): string {
+  const h = Math.floor(ms / (1000 * 60 * 60))
+  const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
+  return `${h}h ${m}m`
 }

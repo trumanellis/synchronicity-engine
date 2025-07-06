@@ -98,23 +98,26 @@ describe('Set Intention Flow', () => {
     
     expect(result1.attentionIndex).toBe(0)
 
-    // Create second intention (simulates attention switch)
+    // Create second intention (simulates attention switch with blessing content)
     const result2 = await setIntention({
       userId,
       title: 'Second intention',
       databases,
-      timestamp: 2000
+      timestamp: 2000,
+      blessingContent: 'Completed initial planning for first intention'
     })
     
     expect(result2.attentionIndex).toBe(1)
 
-    // Verify first blessing is now 'potential' (not active)
+    // Verify first blessing is now 'potential' (not active) and has blessing content
     const blessing1Entry = await databases.blessings.get(result1.blessingId)
     expect(blessing1Entry.value.status).toBe('potential')
+    expect(blessing1Entry.value.content).toBe('Completed initial planning for first intention')
 
-    // Verify second blessing is 'active'
+    // Verify second blessing is 'active' with empty content
     const blessing2Entry = await databases.blessings.get(result2.blessingId)
     expect(blessing2Entry.value.status).toBe('active')
+    expect(blessing2Entry.value.content).toBe('')
 
     // Verify we have 2 attention switches
     const allSwitches = []

@@ -76,7 +76,8 @@ describe('Create Offering', () => {
       userId: 'rafael',
       toIntentionId: 'other',
       databases,
-      timestamp: 3_600_000 // 1 hour
+      timestamp: 3_600_000, // 1 hour
+      blessingContent: 'Completed 1 hour of work to bid with'
     })
 
     // Create offering
@@ -137,7 +138,8 @@ describe('Create Offering', () => {
         userId: bidder.userId,
         toIntentionId: 'other',
         databases,
-        timestamp: bidder.duration
+        timestamp: bidder.duration,
+        blessingContent: `Completed ${bidder.duration / 60000} minutes of focused work`
       })
 
       await bidOnOffering({
@@ -184,7 +186,8 @@ describe('Create Offering', () => {
         userId: `bidder${i}`,
         toIntentionId: 'other',
         databases,
-        timestamp: i * 1000 + (i + 1) * 1_800_000 // Varying durations
+        timestamp: i * 1000 + (i + 1) * 1_800_000, // Varying durations
+        blessingContent: `Bidder ${i} completed work session`
       })
 
       await bidOnOffering({
@@ -237,7 +240,8 @@ describe('Create Offering', () => {
       userId: 'parent_user',
       toIntentionId: 'other',
       databases,
-      timestamp: 1_800_000 // 30 min
+      timestamp: 1_800_000, // 30 min
+      blessingContent: 'Completed 30 minutes of parent work'
     })
 
     // Create child tokens
@@ -252,7 +256,8 @@ describe('Create Offering', () => {
       userId: 'child_user_1',
       toIntentionId: 'other',
       databases,
-      timestamp: 2_600_000 // 10 min
+      timestamp: 2_600_000, // 10 min
+      blessingContent: 'Finished 10 minutes of child work'
     })
 
     // Link parent and child - do this more carefully

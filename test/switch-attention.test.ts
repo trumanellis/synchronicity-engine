@@ -100,7 +100,8 @@ describe('Switch Attention Flow', () => {
       userId,
       title: 'Evening reflection',
       databases,
-      timestamp: 2000
+      timestamp: 2000,
+      blessingContent: 'Completed morning meditation session'
     })
 
     // Return to intention1
