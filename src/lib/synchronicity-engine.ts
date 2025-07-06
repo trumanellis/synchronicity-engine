@@ -3,7 +3,10 @@ import type {
   IntentionDoc, 
   BlessingDoc, 
   AttentionSwitch, 
-  Databases 
+  Databases,
+  ProofDoc,
+  OfferingDoc,
+  OfferBid
 } from './types'
 
 interface SetIntentionParams {
@@ -279,7 +282,12 @@ export async function switchAttention({
     intentionId: toIntentionId,
     timestamp
   }
-  await databases.attentionSwitches.add(attentionSwitch)
+  try {
+    await databases.attentionSwitches.add(attentionSwitch)
+  } catch (error) {
+    console.error('Error adding attention switch:', error)
+    throw new Error(`Failed to switch attention: ${error.message}`)
+  }
   
   // Create new blessing for the target intention
   const newBlessingId = `blessing_${userId}_${timestamp}`
@@ -649,7 +657,7 @@ export async function bidOnOffering({
   }
   
   // Check if user already bid
-  const existingBid = offering.tokenOffers.find(bid => bid.userId === userId)
+  const existingBid = offering.tokenOffers.find((bid: OfferBid) => bid.userId === userId)
   if (existingBid) {
     return {
       success: false,
