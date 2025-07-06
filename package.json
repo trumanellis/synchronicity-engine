@@ -3,13 +3,17 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "electron": "NODE_ENV=development electron .",
+    "electron:build": "electron-builder",
+    "electron:pack": "electron-builder --publish=never"
   },
   "dependencies": {
     "@chainsafe/libp2p-gossipsub": "^14.1.1",
@@ -26,7 +30,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
-    "electron": "^37.1.0",
+    "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
     "eslint": "^9.29.0",
     "eslint-plugin-react-hooks": "^5.2.0",
