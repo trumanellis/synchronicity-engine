@@ -113,6 +113,82 @@ function setupEventListeners() {
             icon.textContent = '▼'
         }
     })
+
+    // Active blessing content field
+    const activeBlessingInput = document.getElementById('activeBlessingInput')
+    if (activeBlessingInput) {
+        activeBlessingInput.addEventListener('input', async (e) => {
+            // Save blessing content as user types (debounced)
+            clearTimeout(activeBlessingInput.saveTimeout)
+            activeBlessingInput.saveTimeout = setTimeout(async () => {
+                await saveBlessingContent(e.target.value)
+            }, 1000) // Save after 1 second of no typing
+        })
+    }
+
+    // Proof modal events
+    const proofModal = document.getElementById('proofModal')
+    const proofForm = document.getElementById('proofForm')
+    const cancelProofBtn = document.getElementById('cancelProofBtn')
+    const activeProofBtn = document.getElementById('activeProofBtn')
+
+    activeProofBtn.addEventListener('click', () => {
+        if (currentIntentionId) {
+            showProofModal(currentIntentionId)
+        }
+    })
+
+    cancelProofBtn.addEventListener('click', () => {
+        proofModal.classList.remove('show')
+        proofForm.reset()
+    })
+
+    proofForm.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        await handlePostProof()
+    })
+
+    // Close proof modal on background click
+    proofModal.addEventListener('click', (e) => {
+        if (e.target === proofModal) {
+            proofModal.classList.remove('show')
+            proofForm.reset()
+        }
+    })
+
+    // Blessing notification modal events
+    const blessingNotificationModal = document.getElementById('blessingNotificationModal')
+    const dismissNotificationBtn = document.getElementById('dismissNotificationBtn')
+    const assignBlessingsBtn = document.getElementById('assignBlessingsBtn')
+
+    dismissNotificationBtn.addEventListener('click', () => {
+        blessingNotificationModal.classList.remove('show')
+    })
+
+    assignBlessingsBtn.addEventListener('click', async () => {
+        await handleBlessingAssignments()
+    })
+
+    // Close notification modal on background click
+    blessingNotificationModal.addEventListener('click', (e) => {
+        if (e.target === blessingNotificationModal) {
+            blessingNotificationModal.classList.remove('show')
+        }
+    })
+
+    // Tokens panel events
+    const tokensToggleBtn = document.getElementById('tokensToggleBtn')
+    const tokensPanel = document.getElementById('tokensPanel')
+    const closeTokensPanel = document.getElementById('closeTokensPanel')
+    const mainContent = document.querySelector('.main-content')
+
+    tokensToggleBtn.addEventListener('click', () => {
+        toggleTokensPanel()
+    })
+
+    closeTokensPanel.addEventListener('click', () => {
+        closeTokensPanelView()
+    })
 }
 
 // Check database connection
@@ -190,6 +266,102 @@ async function loadData() {
 async function updateUI() {
     await updateIntentionsList()
     updateStats()
+    await updateTokensPanel()
+}
+
+// Toggle tokens panel
+function toggleTokensPanel() {
+    const tokensPanel = document.getElementById('tokensPanel')
+    const tokensToggleBtn = document.getElementById('tokensToggleBtn')
+    const mainContent = document.querySelector('.main-content')
+    
+    if (tokensPanel.classList.contains('open')) {
+        closeTokensPanelView()
+    } else {
+        tokensPanel.classList.add('open')
+        tokensToggleBtn.classList.add('panel-open')
+        mainContent.classList.add('with-panel')
+        loadTokensOfGratitude()
+    }
+}
+
+// Close tokens panel
+function closeTokensPanelView() {
+    const tokensPanel = document.getElementById('tokensPanel')
+    const tokensToggleBtn = document.getElementById('tokensToggleBtn')
+    const mainContent = document.querySelector('.main-content')
+    
+    tokensPanel.classList.remove('open')
+    tokensToggleBtn.classList.remove('panel-open')
+    mainContent.classList.remove('with-panel')
+}
+
+// Update tokens panel (called from updateUI)
+async function updateTokensPanel() {
+    if (document.getElementById('tokensPanel').classList.contains('open')) {
+        await loadTokensOfGratitude()
+    }
+}
+
+// Load Tokens of Gratitude (given blessings stewarded by current user)
+async function loadTokensOfGratitude() {
+    const tokensContainer = document.getElementById('tokensContainer')
+    
+    try {
+        // Find all "given" blessings where current user is the steward
+        const tokens = blessings.filter(blessing => 
+            blessing.status === 'given' && 
+            blessing.stewardId === currentUser
+        )
+
+        if (tokens.length === 0) {
+            tokensContainer.innerHTML = `
+                <div class="empty-state" style="opacity: 0.6; text-align: center; padding: 40px 20px;">
+                    <div style="font-size: 2rem; margin-bottom: 16px;">🏆</div>
+                    <p>No tokens stewarded yet</p>
+                </div>
+            `
+            return
+        }
+
+        // Sort tokens by timestamp (newest first)
+        tokens.sort((a, b) => b.timestamp - a.timestamp)
+
+        tokensContainer.innerHTML = ''
+        
+        for (const token of tokens) {
+            // Get intention details
+            const intention = intentions.find(i => i._id === token.intentionId)
+            
+            // Calculate duration for this token
+            const duration = await calculateBlessingDuration(token)
+            
+            const tokenElement = document.createElement('div')
+            tokenElement.className = 'token-item'
+            tokenElement.innerHTML = `
+                <div class="token-header">
+                    <div class="token-value">${formatDuration(duration)}</div>
+                </div>
+                <div class="token-content">${token.content || 'No content'}</div>
+                <div class="token-meta">
+                    <span class="token-intention">${intention?.title || 'Unknown intention'}</span>
+                    <span>${formatDate(token.timestamp)}</span>
+                </div>
+            `
+            tokensContainer.appendChild(tokenElement)
+        }
+        
+        // Update the panel title to show count
+        document.querySelector('.tokens-panel-title').textContent = `Tokens of Gratitude (${tokens.length})`
+        
+    } catch (error) {
+        console.error('Error loading tokens of gratitude:', error)
+        tokensContainer.innerHTML = `
+            <div class="error-message" style="text-align: center; padding: 20px;">
+                Error loading tokens
+            </div>
+        `
+    }
 }
 
 // Update intentions list
@@ -266,6 +438,11 @@ async function updateIntentionsList() {
                         <div class="loading">Loading timeline...</div>
                     </div>
                 </div>
+                <div class="details-section">
+                    <button class="btn btn-proof proof-btn" data-intention-id="${intention._id}">
+                        📝 Post Proof of Service
+                    </button>
+                </div>
             </div>
         </div>
     `).join('')
@@ -284,6 +461,14 @@ async function updateIntentionsList() {
             e.stopPropagation()
             const intentionId = btn.dataset.intentionId
             switchAttention(intentionId)
+        })
+    })
+
+    document.querySelectorAll('.proof-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation()
+            const intentionId = btn.dataset.intentionId
+            showProofModal(intentionId)
         })
     })
 }
@@ -382,6 +567,9 @@ async function updateActiveIntentionCard(intention) {
     
     // Update gratitude potential
     document.getElementById('activeGratitudePotential').textContent = `${formatDuration(intention.gratitudePotential)} potential`
+    
+    // Load and display active blessing content
+    await loadActiveBlessingContent()
     
     // Load active users and timeline (but don't show details by default)
     await loadActiveUsers(intention._id, 'activeUsers')
@@ -531,9 +719,9 @@ async function loadTimeline(intentionId, containerId = null) {
                     timelineItems.push({
                         type: 'proof',
                         timestamp: proof.timestamp,
-                        userId: proof.userId,
+                        userId: proof.by ? proof.by.join(', ') : 'Unknown',
                         content: proof.content,
-                        duration: proof.duration,
+                        media: proof.media || [],
                         id: proof._id
                     })
                 }
@@ -559,9 +747,33 @@ async function loadTimeline(intentionId, containerId = null) {
                     <div class="timeline-content">
                         ${item.content || 'No content'}
                         ${item.status ? `<span class="status status-${item.status}">${item.status}</span>` : ''}
+                        ${item.media && item.media.length > 0 ? `
+                            <div class="timeline-media">
+                                <strong>Media:</strong> 
+                                ${item.media.map(url => `<a href="${url}" target="_blank" rel="noopener">📎 Link</a>`).join(', ')}
+                            </div>
+                        ` : ''}
+                        ${item.type === 'proof' ? `
+                            <button class="btn btn-secondary assign-blessing-btn" 
+                                    data-proof-id="${item.id}" 
+                                    data-intention-id="${intentionId}"
+                                    style="margin-top: 8px; padding: 4px 8px; font-size: 0.8rem;">
+                                🙏 Assign Blessing
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             `).join('')
+
+            // Add event listeners for assign blessing buttons
+            timelineContainer.querySelectorAll('.assign-blessing-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation()
+                    const proofId = btn.dataset.proofId
+                    const intentionId = btn.dataset.intentionId
+                    await showBlessingAssignmentFromTimeline(proofId, intentionId)
+                })
+            })
         }
     } catch (error) {
         console.error('Error loading timeline:', error)
@@ -646,8 +858,15 @@ async function switchAttention(intentionId) {
         document.getElementById('blessingPrompt').textContent = 
             `Leave a blessing for "${currentIntention?.title}" (${formattedDuration}) before switching to "${targetIntention?.title}"`
         
-        // Pre-fill with default blessing content
-        document.getElementById('blessingInput').value = `Work completed at ${new Date().toLocaleTimeString()}`
+        // Pre-fill with saved blessing content or default
+        const activeBlessingInput = document.getElementById('activeBlessingInput')
+        let defaultContent = `Work completed at ${new Date().toLocaleTimeString()}`
+        
+        if (activeBlessingInput && activeBlessingInput.value.trim()) {
+            defaultContent = activeBlessingInput.value.trim()
+        }
+        
+        document.getElementById('blessingInput').value = defaultContent
         
         // Show the blessing modal
         document.getElementById('blessingModal').classList.add('show')
@@ -703,6 +922,392 @@ async function performAttentionSwitch(intentionId, blessingContent) {
     } catch (error) {
         console.error('Error switching attention:', error)
         alert('Failed to switch attention. Please try again.')
+    }
+}
+
+// Save blessing content to current active blessing
+async function saveBlessingContent(content) {
+    if (!currentIntentionId || !isConnected) {
+        return
+    }
+
+    try {
+        // Find the current active blessing for this user and intention
+        const activeBlessings = blessings.filter(blessing => 
+            blessing.userId === currentUser && 
+            blessing.intentionId === currentIntentionId && 
+            blessing.status === 'active'
+        )
+
+        if (activeBlessings.length > 0) {
+            // Update the most recent active blessing
+            const activeBlessingId = activeBlessings[activeBlessings.length - 1]._id
+            console.log('Saving blessing content:', content, 'to blessing:', activeBlessingId)
+            
+            // For now, we'll store this in local storage as a temporary solution
+            // until we can implement proper blessing content updates in the engine
+            localStorage.setItem(`blessing_content_${activeBlessingId}`, content)
+        }
+    } catch (error) {
+        console.error('Error saving blessing content:', error)
+    }
+}
+
+// Load blessing content for current active blessing
+async function loadActiveBlessingContent() {
+    const activeBlessingInput = document.getElementById('activeBlessingInput')
+    if (!activeBlessingInput || !currentIntentionId) {
+        return
+    }
+
+    try {
+        // Find the current active blessing for this user and intention
+        const activeBlessings = blessings.filter(blessing => 
+            blessing.userId === currentUser && 
+            blessing.intentionId === currentIntentionId && 
+            blessing.status === 'active'
+        )
+
+        if (activeBlessings.length > 0) {
+            const activeBlessingId = activeBlessings[activeBlessings.length - 1]._id
+            const savedContent = localStorage.getItem(`blessing_content_${activeBlessingId}`)
+            
+            if (savedContent) {
+                activeBlessingInput.value = savedContent
+            } else {
+                // Default content based on blessing
+                const blessing = activeBlessings[activeBlessings.length - 1]
+                activeBlessingInput.value = blessing.content || ''
+            }
+        } else {
+            activeBlessingInput.value = ''
+        }
+    } catch (error) {
+        console.error('Error loading blessing content:', error)
+        activeBlessingInput.value = ''
+    }
+}
+
+// Show proof of service modal
+function showProofModal(intentionId) {
+    if (!isConnected) {
+        alert('Not connected to database')
+        return
+    }
+
+    // Store the intention ID for submission
+    document.getElementById('proofModal').dataset.intentionId = intentionId
+    
+    // Find intention details for display
+    const intention = intentions.find(i => i._id === intentionId)
+    if (intention) {
+        document.getElementById('proofPrompt').textContent = 
+            `Document the work you've completed on "${intention.title}"`
+    }
+    
+    // Show the modal
+    document.getElementById('proofModal').classList.add('show')
+    document.getElementById('proofContent').focus()
+}
+
+// Handle posting proof of service
+async function handlePostProof() {
+    const modal = document.getElementById('proofModal')
+    const intentionId = modal.dataset.intentionId
+    
+    if (!intentionId) {
+        alert('No intention selected')
+        return
+    }
+
+    const content = document.getElementById('proofContent').value.trim()
+    const collaboratorsInput = document.getElementById('proofCollaborators').value.trim()
+    const mediaInput = document.getElementById('proofMedia').value.trim()
+
+    if (!content) {
+        alert('Please describe the service you provided')
+        return
+    }
+
+    try {
+        // Parse collaborators (comma-separated)
+        const collaborators = collaboratorsInput 
+            ? collaboratorsInput.split(',').map(name => name.trim()).filter(name => name)
+            : []
+        
+        // Parse media URLs (comma-separated)
+        const media = mediaInput 
+            ? mediaInput.split(',').map(url => url.trim()).filter(url => url)
+            : []
+
+        // Add current user to the "by" array
+        const by = [currentUser, ...collaborators]
+
+        // Post the proof
+        const result = await window.electronAPI.postProofOfService({
+            intentionId: intentionId,
+            by: by,
+            content: content,
+            media: media
+        })
+
+        if (result.success) {
+            // Close modal and reset form
+            modal.classList.remove('show')
+            document.getElementById('proofForm').reset()
+
+            // Reload data and update UI
+            await loadData()
+            updateUI()
+
+            // Show success feedback
+            showToast(`Proof of service posted successfully!`, 'success')
+
+            // Check for potential blessings to assign and show notification
+            // We need to pass the actual proof data, not just the result
+            const fullProofData = {
+                _id: result.result.proofId,
+                proofId: result.result.proofId,
+                intentionId: intentionId,
+                by: by,
+                content: content,
+                media: media,
+                timestamp: Date.now()
+            }
+            await checkForBlessingAssignmentOpportunities(intentionId, fullProofData)
+        } else {
+            alert(`Error posting proof: ${result.error}`)
+        }
+    } catch (error) {
+        console.error('Error posting proof:', error)
+        alert('Failed to post proof of service. Please try again.')
+    }
+}
+
+// Check for blessing assignment opportunities after proof is posted
+async function checkForBlessingAssignmentOpportunities(intentionId, proofResult) {
+    try {
+        // Debug: Log all blessings for current user
+        const allUserBlessings = blessings.filter(blessing => blessing.userId === currentUser)
+        console.log('All blessings for current user:', allUserBlessings)
+        
+        // Debug: Log all blessings for this intention
+        const allIntentionBlessings = blessings.filter(blessing => blessing.intentionId === intentionId)
+        console.log('All blessings for this intention:', allIntentionBlessings)
+        
+        // Find current user's potential blessings on this intention (only potential can be assigned)
+        const userBlessings = blessings.filter(blessing => 
+            blessing.intentionId === intentionId && 
+            blessing.status === 'potential' &&
+            blessing.userId === currentUser
+        )
+
+        console.log('User potential blessings for this intention:', userBlessings)
+
+        if (userBlessings.length > 0) {
+            showBlessingAssignmentNotification(intentionId, userBlessings, proofResult)
+        } else {
+            console.log('No potential blessings found for user on this intention')
+        }
+    } catch (error) {
+        console.error('Error checking for blessing assignment opportunities:', error)
+    }
+}
+
+// Show blessing assignment notification modal
+async function showBlessingAssignmentNotification(intentionId, userBlessings, proofResult) {
+    const modal = document.getElementById('blessingNotificationModal')
+    const intention = intentions.find(i => i._id === intentionId)
+    
+    // Store data for later use
+    modal.dataset.intentionId = intentionId
+    modal.dataset.proofId = proofResult.proofId || proofResult._id
+
+    // Update notification message with prominent author display
+    const primaryAuthor = proofResult.by && proofResult.by.length > 0 ? proofResult.by[0] : 'Unknown'
+    document.getElementById('notificationMessage').innerHTML = 
+        `<strong>${primaryAuthor}</strong> has posted a proof of service for "<em>${intention?.title}</em>". You can assign your potential blessings to reward their service.`
+
+    // Populate potential blessings list
+    const blessingsList = document.getElementById('potentialBlessingsList')
+    blessingsList.innerHTML = ''
+
+    for (const blessing of userBlessings) {
+        // Calculate duration for this blessing
+        const duration = await calculateBlessingDuration(blessing)
+        
+        const blessingElement = document.createElement('div')
+        blessingElement.className = 'potential-blessing-item'
+        blessingElement.innerHTML = `
+            <input type="checkbox" class="blessing-checkbox" data-blessing-id="${blessing._id}" checked>
+            <div class="blessing-info">
+                <div class="blessing-content">${blessing.content || 'No content'}</div>
+                <div class="blessing-meta">
+                    <span class="blessing-duration">${formatDuration(duration)}</span>
+                    <span>Status: ${blessing.status}</span>
+                    <span>${formatDate(blessing.timestamp)}</span>
+                </div>
+            </div>
+        `
+        blessingsList.appendChild(blessingElement)
+    }
+
+    // Populate proof details
+    const proofDetailsContent = document.getElementById('proofDetailsContent')
+    console.log('Proof result data:', proofResult)
+    proofDetailsContent.innerHTML = `
+        <div style="margin-bottom: 12px; font-size: 1.1rem;"><strong>🏆 Service by:</strong> <span style="color: #ffd700; font-weight: 600;">${proofResult.by ? proofResult.by.join(', ') : 'Unknown'}</span></div>
+        <div style="margin-bottom: 8px;"><strong>Description:</strong> ${proofResult.content || 'No description'}</div>
+        ${proofResult.media && proofResult.media.length > 0 ? `
+            <div><strong>Media:</strong> ${proofResult.media.map(url => `<a href="${url}" target="_blank" rel="noopener">📎 Link</a>`).join(', ')}</div>
+        ` : ''}
+    `
+
+    // Show the modal
+    modal.classList.add('show')
+}
+
+// Handle blessing assignments
+async function handleBlessingAssignments() {
+    const modal = document.getElementById('blessingNotificationModal')
+    const proofId = modal.dataset.proofId
+    
+    if (!proofId) {
+        alert('No proof ID found')
+        return
+    }
+
+    try {
+        // Get selected blessings
+        const checkboxes = modal.querySelectorAll('.blessing-checkbox:checked')
+        const selectedBlessingIds = Array.from(checkboxes).map(cb => cb.dataset.blessingId)
+
+        if (selectedBlessingIds.length === 0) {
+            alert('Please select at least one blessing to assign')
+            return
+        }
+
+        // Get the proof data from the modal
+        const intentionId = modal.dataset.intentionId
+        
+        // Get the actual proof document to get the correct provider information
+        const proofsResult = await window.electronAPI.getDatabaseDocuments('proofsOfService')
+        const proof = proofsResult.documents?.map(doc => doc.value).find(p => p._id === proofId)
+        
+        if (!proof) {
+            alert('Proof not found')
+            return
+        }
+        
+        // Show a selection interface for multiple providers or use the first one
+        const providers = proof.by || [currentUser]
+        
+        // For now, assign to the first provider, but in a full implementation 
+        // you might want to let users choose which provider gets each blessing
+        const primaryProvider = providers[0]
+        
+        console.log('Assigning blessings to provider:', primaryProvider, 'from proof by:', proof.by)
+
+        console.log('Assigning blessings:', {
+            selectedBlessingIds,
+            primaryProvider,
+            proofId,
+            proof: proof
+        })
+
+        let assignedCount = 0
+        const errors = []
+        
+        for (const blessingId of selectedBlessingIds) {
+            try {
+                console.log(`Attempting to assign blessing ${blessingId} to ${primaryProvider}`)
+                const result = await window.electronAPI.assignBlessing({
+                    blessingId: blessingId,
+                    toUserId: primaryProvider,
+                    proofId: proofId
+                })
+
+                console.log(`Assignment result for ${blessingId}:`, result)
+
+                if (result.success) {
+                    assignedCount++
+                    console.log(`Successfully assigned blessing ${blessingId}`)
+                } else {
+                    const errorMsg = `Failed to assign blessing ${blessingId}: ${result.error}`
+                    console.error(errorMsg)
+                    errors.push(errorMsg)
+                }
+            } catch (error) {
+                const errorMsg = `Error assigning blessing ${blessingId}: ${error.message}`
+                console.error(errorMsg)
+                errors.push(errorMsg)
+            }
+        }
+
+        // Close modal
+        modal.classList.remove('show')
+
+        // Reload data to reflect changes
+        await loadData()
+        updateUI()
+
+        // Show success message or errors
+        if (assignedCount > 0) {
+            showToast(`Successfully assigned ${assignedCount} blessing(s) to ${primaryProvider}`, 'success')
+        }
+        
+        if (errors.length > 0) {
+            console.error('Assignment errors:', errors)
+            if (assignedCount === 0) {
+                alert(`Failed to assign blessings:\n${errors.join('\n')}`)
+            } else {
+                showToast(`Some assignments failed. Check console for details.`, 'error')
+            }
+        }
+
+    } catch (error) {
+        console.error('Error handling blessing assignments:', error)
+        alert(`Failed to assign blessings: ${error.message}. Please try again.`)
+    }
+}
+
+// Show blessing assignment modal from timeline button
+async function showBlessingAssignmentFromTimeline(proofId, intentionId) {
+    try {
+        // Find the proof document to get details
+        const proofsResult = await window.electronAPI.getDatabaseDocuments('proofsOfService')
+        const proof = proofsResult.documents?.map(doc => doc.value).find(p => p._id === proofId)
+        
+        if (!proof) {
+            alert('Proof not found')
+            return
+        }
+
+        // Debug logging for timeline assignment
+        console.log('Timeline assignment - looking for blessings:', {
+            intentionId,
+            currentUser,
+            allUserBlessings: blessings.filter(b => b.userId === currentUser),
+            allIntentionBlessings: blessings.filter(b => b.intentionId === intentionId)
+        })
+
+        // Find current user's potential blessings for this intention (only potential can be assigned)
+        const userBlessings = blessings.filter(blessing => 
+            blessing.intentionId === intentionId && 
+            blessing.status === 'potential' &&
+            blessing.userId === currentUser
+        )
+
+        if (userBlessings.length === 0) {
+            showToast('You have no potential blessings for this intention', 'info')
+            return
+        }
+
+        // Show the notification modal with this proof
+        await showBlessingAssignmentNotification(intentionId, userBlessings, proof)
+    } catch (error) {
+        console.error('Error showing blessing assignment from timeline:', error)
+        alert('Failed to load blessing assignment options')
     }
 }
 

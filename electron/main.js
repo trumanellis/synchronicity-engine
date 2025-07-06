@@ -327,81 +327,252 @@ ipcMain.handle('add-sample-data', async () => {
   }
   
   try {
-    console.log('Adding realistic sample data from documentation...')
+    console.log('Adding regenerative and spiritual sample data...')
     
-    // Realistic intentions from docs
+    // Regenerative and spiritual intentions
     const sampleIntentions = [
       {
         _id: 'intention_001',
-        title: 'Clear invasive eucalyptus from the mountain peak',
-        blessings: ['blessing_truman_001'],
+        title: 'Restore the sacred grove with native medicinal plants',
+        blessings: ['blessing_sage_001', 'blessing_luna_001'],
         proofsOfService: [],
         attachedTokens: [],
         status: 'open',
-        createdBy: 'truman',
-        createdAt: 1719304800000
+        createdBy: 'sage_willow',
+        createdAt: Date.now() - 7200000 // 2 hours ago
       },
       {
         _id: 'intention_002',
-        title: 'Repair ridge fencing',
+        title: 'Build community meditation labyrinth',
+        blessings: ['blessing_river_001'],
+        proofsOfService: [],
+        attachedTokens: [],
+        status: 'open',
+        createdBy: 'river_stone',
+        createdAt: Date.now() - 3600000 // 1 hour ago
+      },
+      {
+        _id: 'intention_003',
+        title: 'Establish seed library for heirloom varieties',
+        blessings: ['blessing_dawn_001', 'blessing_forest_001'],
+        proofsOfService: [],
+        attachedTokens: [],
+        status: 'open',
+        createdBy: 'dawn_keeper',
+        createdAt: Date.now() - 1800000 // 30 minutes ago
+      },
+      {
+        _id: 'intention_004',
+        title: 'Create healing sound bath sanctuary',
         blessings: [],
         proofsOfService: [],
         attachedTokens: [],
         status: 'open',
-        createdBy: 'truman',
-        createdAt: 1719312000000
-      }
-    ]
-    
-    // Realistic blessings from docs
-    const sampleBlessings = [
-      {
-        _id: 'blessing_truman_001',
-        userId: 'truman',
-        intentionId: 'intention_001',
-        attentionIndex: 0,
-        content: 'The ridgeline could carry almonds again. But first, the invaders must go.',
-        timestamp: 1719304800000,
-        status: 'potential',
-        stewardId: 'truman'
-      }
-    ]
-    
-    // Realistic attention switches from docs
-    const sampleAttentionSwitches = [
-      {
-        userId: 'truman',
-        intentionId: 'intention_001',
-        timestamp: 1719304800000
+        createdBy: 'cosmic_heart',
+        createdAt: Date.now() - 900000 // 15 minutes ago
       },
       {
-        userId: 'truman',
-        intentionId: 'intention_002',
-        timestamp: 1719318300000
+        _id: 'intention_005',
+        title: 'Organize monthly earth blessing ceremony',
+        blessings: ['blessing_moon_001'],
+        proofsOfService: [],
+        attachedTokens: [],
+        status: 'open',
+        createdBy: 'moon_sister',
+        createdAt: Date.now() - 600000 // 10 minutes ago
       }
     ]
     
-    // Realistic proofs of service from docs
+    // Spiritual and regenerative blessings
+    const sampleBlessings = [
+      {
+        _id: 'blessing_sage_001',
+        userId: 'sage_willow',
+        intentionId: 'intention_001',
+        attentionIndex: 0,
+        content: 'May this grove become a sanctuary where ancient plant wisdom flows through every leaf and root.',
+        timestamp: Date.now() - 7200000,
+        status: 'potential',
+        stewardId: 'sage_willow'
+      },
+      {
+        _id: 'blessing_luna_001',
+        userId: 'luna_bright',
+        intentionId: 'intention_001',
+        attentionIndex: 1,
+        content: 'Grateful to tend this sacred space where healing plants will flourish for generations.',
+        timestamp: Date.now() - 5400000,
+        status: 'potential',
+        stewardId: 'luna_bright'
+      },
+      {
+        _id: 'blessing_river_001',
+        userId: 'river_stone',
+        intentionId: 'intention_002',
+        attentionIndex: 0,
+        content: 'Each stone placed with intention, creating pathways for deep contemplation and inner peace.',
+        timestamp: Date.now() - 3600000,
+        status: 'active',
+        stewardId: 'river_stone'
+      },
+      {
+        _id: 'blessing_dawn_001',
+        userId: 'dawn_keeper',
+        intentionId: 'intention_003',
+        attentionIndex: 0,
+        content: 'Preserving the genetic wisdom of our ancestors, ensuring abundance for future generations.',
+        timestamp: Date.now() - 1800000,
+        status: 'potential',
+        stewardId: 'dawn_keeper'
+      },
+      {
+        _id: 'blessing_forest_001',
+        userId: 'forest_heart',
+        intentionId: 'intention_003',
+        attentionIndex: 1,
+        content: 'Each seed carries the memory of earth\'s abundance. Honored to be a keeper of this legacy.',
+        timestamp: Date.now() - 1200000,
+        status: 'potential',
+        stewardId: 'forest_heart'
+      },
+      {
+        _id: 'blessing_moon_001',
+        userId: 'moon_sister',
+        intentionId: 'intention_005',
+        attentionIndex: 0,
+        content: 'Calling in the sacred feminine to bless our beautiful earth with love and healing.',
+        timestamp: Date.now() - 600000,
+        status: 'active',
+        stewardId: 'moon_sister'
+      }
+    ]
+    
+    // Attention switches for spiritual users
+    const sampleAttentionSwitches = [
+      {
+        userId: 'sage_willow',
+        intentionId: 'intention_001',
+        timestamp: Date.now() - 7200000
+      },
+      {
+        userId: 'luna_bright',
+        intentionId: 'intention_001',
+        timestamp: Date.now() - 5400000
+      },
+      {
+        userId: 'river_stone',
+        intentionId: 'intention_002',
+        timestamp: Date.now() - 3600000
+      },
+      {
+        userId: 'dawn_keeper',
+        intentionId: 'intention_003',
+        timestamp: Date.now() - 1800000
+      },
+      {
+        userId: 'forest_heart',
+        intentionId: 'intention_003',
+        timestamp: Date.now() - 1200000
+      },
+      {
+        userId: 'moon_sister',
+        intentionId: 'intention_005',
+        timestamp: Date.now() - 600000
+      }
+    ]
+    
+    // Regenerative and spiritual proofs of service
     const sampleProofsOfService = [
       {
         _id: 'proof_001',
         intentionId: 'intention_001',
-        by: ['john', 'freya'],
-        content: 'Cleared weeds and mulched paths.',
-        media: ['ipfs://QmProofImage'],
-        timestamp: 1719391200000
+        by: ['sage_willow', 'luna_bright'],
+        content: 'Planted 12 native medicinal herbs including echinacea, calendula, and nettle. Created sacred spiral pattern.',
+        media: ['ipfs://QmSacredGrovePhoto'],
+        timestamp: Date.now() - 3600000
+      },
+      {
+        _id: 'proof_002',
+        intentionId: 'intention_002',
+        by: ['river_stone'],
+        content: 'Laid foundation stones for meditation labyrinth in seven-circuit classical pattern.',
+        media: ['ipfs://QmLabyrinthProgress'],
+        timestamp: Date.now() - 1800000
       }
     ]
     
-    // Realistic offerings from docs
+    // Spiritual and regenerative offerings
     const sampleOfferings = [
       {
         _id: 'offering_001',
-        title: 'Yoga in the Temple',
-        description: 'Grounding Hatha practice at Agua Lila.',
-        time: '2025-06-21T10:00:00+01:00',
-        place: 'Agua Lila Upper Temple Deck',
-        slotsAvailable: 10,
+        title: 'Sacred Plant Medicine Workshop',
+        description: 'Learn to work with local medicinal plants in ceremony and daily practice. We\'ll harvest, prepare tinctures, and share ancient plant wisdom.',
+        time: '2024-12-20T14:00:00-08:00',
+        place: 'Sacred Grove Sanctuary',
+        slotsAvailable: 8,
+        tokenOffers: [
+          {
+            userId: 'forest_heart',
+            topToken: 'blessing_forest_001'
+          },
+          {
+            userId: 'dawn_keeper',
+            topToken: 'blessing_dawn_001'
+          }
+        ],
+        selectedStewards: [],
+        status: 'open'
+      },
+      {
+        _id: 'offering_002',
+        title: 'New Moon Ceremony & Sound Bath',
+        description: 'Monthly gathering to honor the new moon with crystal singing bowls, intention setting, and community blessing circle.',
+        time: '2024-12-30T19:00:00-08:00',
+        place: 'Moonrise Meadow',
+        slotsAvailable: 20,
+        tokenOffers: [
+          {
+            userId: 'luna_bright',
+            topToken: 'blessing_luna_001'
+          }
+        ],
+        selectedStewards: [],
+        status: 'open'
+      },
+      {
+        _id: 'offering_003',
+        title: 'Permaculture Design Intensive',
+        description: 'Three-day deep dive into regenerative land design. Learn to read the landscape and create abundance through earth partnership.',
+        time: '2025-01-15T09:00:00-08:00',
+        place: 'Gaia Learning Center',
+        slotsAvailable: 15,
+        tokenOffers: [],
+        selectedStewards: [],
+        status: 'open'
+      },
+      {
+        _id: 'offering_004',
+        title: 'Seed Blessing & Exchange Circle',
+        description: 'Seasonal gathering to bless heirloom seeds and share varieties. Includes seed starting workshop and community feast.',
+        time: '2025-02-02T11:00:00-08:00',
+        place: 'Community Garden Greenhouse',
+        slotsAvailable: 25,
+        tokenOffers: [
+          {
+            userId: 'sage_willow',
+            topToken: 'blessing_sage_001'
+          }
+        ],
+        selectedStewards: [],
+        status: 'open'
+      },
+      {
+        _id: 'offering_005',
+        title: 'Earth Healing Meditation Retreat',
+        description: 'Weekend retreat focusing on sending healing energy to damaged ecosystems. Includes forest bathing, earth prayers, and restoration work.',
+        time: '2025-03-21T16:00:00-07:00',
+        place: 'Redwood Restoration Site',
+        slotsAvailable: 12,
         tokenOffers: [],
         selectedStewards: [],
         status: 'open'
@@ -555,10 +726,99 @@ ipcMain.handle('calculate-gratitude-potential', async (event, params) => {
   }
 })
 
+// Offerings APIs
+ipcMain.handle('create-offering', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { createOffering } = await import('../src/lib/synchronicity-engine.js')
+    
+    const result = await createOffering(params, databases)
+    return { success: true, result }
+  } catch (error) {
+    console.error('Error creating offering:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('bid-on-offering', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { bidOnOffering } = await import('../src/lib/synchronicity-engine.js')
+    
+    const result = await bidOnOffering(params, databases)
+    return { success: true, result }
+  } catch (error) {
+    console.error('Error bidding on offering:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('accept-offering-bids', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { acceptOfferingBids } = await import('../src/lib/synchronicity-engine.js')
+    
+    const result = await acceptOfferingBids(params, databases)
+    return { success: true, result }
+  } catch (error) {
+    console.error('Error accepting offering bids:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Proof of Service APIs
+ipcMain.handle('post-proof-of-service', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { postProofOfService } = await import('../src/lib/synchronicity-engine.js')
+    
+    const result = await postProofOfService({
+      ...params,
+      databases
+    })
+    return { success: true, result }
+  } catch (error) {
+    console.error('Error posting proof of service:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('assign-blessing', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { assignBlessing } = await import('../src/lib/synchronicity-engine.js')
+    
+    const result = await assignBlessing({
+      ...params,
+      databases
+    })
+    return { success: true, result }
+  } catch (error) {
+    console.error('Error assigning blessing:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 // Navigation handlers
 ipcMain.handle('navigate-to', async (event, page) => {
   const pages = {
     'app': 'app.html',
+    'offerings': 'offerings.html',
     'test-runner': 'renderer.html',
     'database-browser': 'database-browser.html'
   }

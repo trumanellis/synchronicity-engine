@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synchronicity Engine - Marketplace</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+
+        .nav-pills {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .nav-pill {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .nav-pill:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .nav-pill.active {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #0f2027;
+            border: none;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .offerings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .offerings-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #ffd700;
+        }
+
+        .offerings-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #0f2027;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .offerings-filters {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        .offerings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+        }
+
+        .offering-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .offering-card:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .offering-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .offering-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .offering-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-open {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+
+        .status-fulfilled {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+
+        .offering-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .offering-description {
+            line-height: 1.5;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        .offering-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+        }
+
+        .slots-available {
+            color: #2ecc71;
+        }
+
+        .bids-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 16px;
+            margin-bottom: 20px;
+        }
+
+        .bids-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .bids-count {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .bid-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .bid-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .bid-user {
+            font-weight: 600;
+        }
+
+        .bid-value {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .offering-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-bid {
+            flex: 1;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #0f2027;
+        }
+
+        .btn-bid:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.7;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Synchronicity Engine</h1>
+            <p>Community offerings with gratitude bidding</p>
+        </div>
+
+        <div class="nav-pills">
+            <button class="nav-pill" data-page="app">Intentions</button>
+            <button class="nav-pill active" data-page="offerings">Offerings</button>
+            <button class="nav-pill" data-page="database-browser">Database</button>
+            <button class="nav-pill" data-page="test-runner">Tests</button>
+        </div>
+
+        <div class="main-content">
+            <div class="offerings-header">
+                <h1 class="offerings-title">Community Offerings</h1>
+                <div class="offerings-actions">
+                    <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+                    <button class="btn btn-primary" id="createOfferingBtn">+ Create Offering</button>
+                </div>
+            </div>
+
+            <div class="offerings-filters">
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select class="filter-input" id="statusFilter">
+                        <option value="all">All Offerings</option>
+                        <option value="open">Open</option>
+                        <option value="fulfilled">Fulfilled</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Search</label>
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Search offerings...">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Sort By</label>
+                    <select class="filter-input" id="sortFilter">
+                        <option value="newest">Newest First</option>
+                        <option value="slots">Most Slots</option>
+                        <option value="bids">Most Interest</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="offerings-grid" id="offeringsGrid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🛍️</div>
+                    <p>No offerings available yet. Create the first one!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="offerings.js"></script>
+</body>
+</html>
