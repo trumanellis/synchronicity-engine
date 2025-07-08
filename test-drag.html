@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drag to Steward Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .steward-header { 
+            padding: 20px; 
+            background: lightblue; 
+            border: 2px solid blue; 
+            margin: 20px 0; 
+            border-radius: 8px;
+        }
+        .steward-header.drag-over { 
+            background: lightgreen; 
+            border-color: green; 
+        }
+        .token { 
+            padding: 10px; 
+            background: lightgray; 
+            margin: 5px 0; 
+            border: 1px solid gray; 
+            border-radius: 4px;
+            cursor: move;
+        }
+        .token.dragging { opacity: 0.5; }
+        .hierarchy { margin-left: 20px; }
+        .debug { background: lightyellow; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Drag to Steward Test</h1>
+    
+    <div id="debug" class="debug">Debug output will appear here</div>
+    
+    <div id="steward-header" class="steward-header">
+        <strong>Steward (truman)</strong> - Drop tokens here to move to root
+    </div>
+    
+    <div id="tokens-container">
+        <div class="token" data-token-id="token1" draggable="true">Token 1 (root)</div>
+        <div class="hierarchy">
+            <div class="token" data-token-id="token2" draggable="true">Token 2 (child of token1)</div>
+            <div class="hierarchy">
+                <div class="token" data-token-id="token3" draggable="true">Token 3 (child of token2)</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Mock data
+        let tokenHierarchy = {
+            'token1': { children: ['token2'] },
+            'token2': { parent: 'token1', children: ['token3'] },
+            'token3': { parent: 'token2', children: [] }
+        };
+        
+        let blessings = [
+            { _id: 'token1', stewardId: 'truman' },
+            { _id: 'token2', stewardId: 'truman' },
+            { _id: 'token3', stewardId: 'truman' }
+        ];
+        
+        let draggedTokenId = null;
+        
+        function log(msg) {
+            document.getElementById('debug').innerHTML += msg + '<br>';
+        }
+        
+        function getStewardId(tokenId) {
+            const token = blessings.find(t => t._id === tokenId);
+            return token ? token.stewardId : null;
+        }
+        
+        function getTokenParent(tokenId) {
+            return tokenHierarchy[tokenId] ? tokenHierarchy[tokenId].parent || null : null;
+        }
+        
+        function removeTokenFromParent(tokenId, parentId) {
+            if (tokenHierarchy[parentId] && tokenHierarchy[parentId].children) {
+                const index = tokenHierarchy[parentId].children.indexOf(tokenId);
+                if (index > -1) {
+                    tokenHierarchy[parentId].children.splice(index, 1);
+                }
+            }
+        }
+        
+        function setTokenParentWithStewardSupport(tokenId, parentId) {
+            log(`setTokenParentWithStewardSupport: ${tokenId} -> ${parentId}`);
+            const stewardId = getStewardId(tokenId);
+            log(`Token ${tokenId} steward: ${stewardId}`);
+            
+            // If trying to set steward as parent, remove from current parent and clear explicit parent
+            if (parentId === stewardId) {
+                log(`Setting ${tokenId} to steward ${stewardId} (removing from hierarchy)`);
+                // Remove from old parent's children if exists
+                if (tokenHierarchy[tokenId] && tokenHierarchy[tokenId].parent) {
+                    const oldParent = tokenHierarchy[tokenId].parent;
+                    log(`Removing ${tokenId} from old parent ${oldParent}`);
+                    removeTokenFromParent(tokenId, oldParent);
+                    delete tokenHierarchy[tokenId].parent;
+                    log(`Token ${tokenId} parent cleared`);
+                } else {
+                    log(`Token ${tokenId} had no explicit parent to clear`);
+                }
+                log(`Final hierarchy state for ${tokenId}: ${JSON.stringify(tokenHierarchy[tokenId])}`);
+                return;
+            }
+            
+            log(`Would set normal parent relationship: ${tokenId} -> ${parentId}`);
+        }
+        
+        function promoteTokenToSteward(tokenId) {
+            log(`promoteTokenToSteward called with tokenId: ${tokenId}`);
+            const stewardId = getStewardId(tokenId);
+            log(`Steward ID: ${stewardId}`);
+            
+            if (stewardId) {
+                log(`Before promotion - token ${tokenId} parent: ${getTokenParent(tokenId)}`);
+                setTokenParentWithStewardSupport(tokenId, stewardId);
+                log(`After promotion - token ${tokenId} parent: ${getTokenParent(tokenId)}`);
+                log(`Current hierarchy: ${JSON.stringify(tokenHierarchy, null, 2)}`);
+            } else {
+                log('No steward ID found for token');
+            }
+        }
+        
+        // Drag and drop handlers
+        document.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('token')) {
+                draggedTokenId = e.target.dataset.tokenId;
+                e.target.classList.add('dragging');
+                log(`Started dragging: ${draggedTokenId}`);
+            }
+        });
+        
+        document.addEventListener('dragend', function(e) {
+            if (e.target.classList.contains('token')) {
+                e.target.classList.remove('dragging');
+                draggedTokenId = null;
+            }
+        });
+        
+        // Steward header drag and drop
+        const stewardHeader = document.getElementById('steward-header');
+        
+        stewardHeader.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        
+        stewardHeader.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        });
+        
+        stewardHeader.addEventListener('dragleave', function(e) {
+            e.currentTarget.classList.remove('drag-over');
+        });
+        
+        stewardHeader.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            log(`=== STEWARD DROP EVENT ===`);
+            log(`Dropped on steward header, draggedTokenId: ${draggedTokenId}`);
+            
+            if (draggedTokenId) {
+                log(`Promoting token ${draggedTokenId} to steward`);
+                promoteTokenToSteward(draggedTokenId);
+            } else {
+                log('No draggedTokenId set!');
+            }
+            
+            log(`=== END STEWARD DROP EVENT ===`);
+        });
+        
+        log('Test page loaded. Drag tokens to steward header.');
+        log(`Initial hierarchy: ${JSON.stringify(tokenHierarchy, null, 2)}`);
+    </script>
+</body>
+</html>

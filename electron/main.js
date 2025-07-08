@@ -23,13 +23,11 @@ function createWindow() {
     }
   })
 
-  // Start with the main app
-  mainWindow.loadFile(path.join(__dirname, 'app.html'))
+  // Start with the main app (v3 dashboard)
+  mainWindow.loadFile(path.join(__dirname, 'app-v3.html'))
   
   // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools()
-  }
+  mainWindow.webContents.openDevTools()
   
   // Auto-connect to databases when window is ready
   mainWindow.webContents.once('dom-ready', () => {
@@ -57,6 +55,61 @@ app.on('before-quit', async () => {
     await stopOrbitDB(orbitdb)
   }
 })
+
+// Setup event listeners for database changes
+function setupDatabaseEventListeners() {
+  if (!databases) return
+  
+  console.log('Setting up database event listeners for real-time updates...')
+  
+  // Listen for database updates and notify renderer
+  Object.entries(databases).forEach(([dbName, db]) => {
+    console.log(`Setting up listeners for ${dbName} database`)
+    
+    // Listen for new entries/updates
+    db.events.on('write', (address, entry) => {
+      console.log(`Database update: ${dbName} - new entry`)
+      
+      // Notify renderer about the specific database update
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('database-updated', {
+          database: dbName,
+          operation: 'write',
+          entry: entry
+        })
+      }
+    })
+    
+    // Listen for database replication (when syncing with peers)
+    db.events.on('replicated', (address) => {
+      console.log(`Database replicated: ${dbName}`)
+      
+      // Notify renderer about replication
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('database-updated', {
+          database: dbName,
+          operation: 'replicated'
+        })
+      }
+    })
+    
+    // Listen for database joins (when peers connect)
+    db.events.on('join', (peerId, heads) => {
+      console.log(`Peer joined ${dbName}: ${peerId}`)
+      
+      // Notify renderer about peer join
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('database-updated', {
+          database: dbName,
+          operation: 'peer-joined',
+          peerId: peerId
+        })
+      }
+    })
+  })
+  
+  console.log('Database event listeners set up successfully')
+}
 
 // Initialize persistent databases
 async function initializeDatabases() {
@@ -131,6 +184,9 @@ async function initializeDatabases() {
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     console.log('Databases connected successfully')
+    
+    // Set up event listeners for real-time updates
+    setupDatabaseEventListeners()
     
     // Notify renderer that databases are ready
     if (mainWindow && mainWindow.webContents) {
@@ -311,11 +367,34 @@ ipcMain.handle('disconnect-databases', async () => {
       await stopOrbitDB(orbitdb)
       orbitdb = null
       databases = null
+      isConnecting = false
       console.log('Disconnected from databases')
     }
     return { success: true }
   } catch (error) {
     console.error('Error disconnecting:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('refresh-databases', async () => {
+  try {
+    console.log('Refreshing databases...')
+    
+    // Disconnect existing databases
+    if (orbitdb) {
+      await stopOrbitDB(orbitdb)
+      orbitdb = null
+      databases = null
+      isConnecting = false
+    }
+    
+    // Reconnect to databases
+    await initializeDatabases()
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error refreshing databases:', error)
     return { success: false, error: error.message }
   }
 })
@@ -814,13 +893,152 @@ ipcMain.handle('assign-blessing', async (event, params) => {
   }
 })
 
+// Data retrieval handlers for dashboard
+ipcMain.handle('get-all-intentions', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const allDocs = await databases.intentions.all()
+    const intentions = allDocs.map(doc => ({ _id: doc.key, ...doc.value }))
+    return { success: true, data: intentions }
+  } catch (error) {
+    console.error('Error getting intentions:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('get-all-blessings', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const allDocs = await databases.blessings.all()
+    const blessings = allDocs.map(doc => ({ _id: doc.key, ...doc.value }))
+    return { success: true, data: blessings }
+  } catch (error) {
+    console.error('Error getting blessings:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('get-all-offerings', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const allDocs = await databases.offerings.all()
+    const offerings = allDocs.map(doc => ({ _id: doc.key, ...doc.value }))
+    return { success: true, data: offerings }
+  } catch (error) {
+    console.error('Error getting offerings:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('get-all-attention-switches', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const entries = []
+    for await (const entry of databases.attentionSwitches.iterator()) {
+      entries.push({ _id: entry.hash, ...entry.value })
+    }
+    return { success: true, data: entries }
+  } catch (error) {
+    console.error('Error getting attention switches:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('get-all-proofs-of-service', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const entries = []
+    for await (const entry of databases.proofsOfService.iterator()) {
+      entries.push({ _id: entry.hash, ...entry.value })
+    }
+    return { success: true, data: entries }
+  } catch (error) {
+    console.error('Error getting proofs of service:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Single efficient API to get all dashboard data at once
+ipcMain.handle('get-all-dashboard-data', async () => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    console.log('Loading all dashboard data in single call...')
+    
+    // Load all data in parallel using existing database connections
+    const [intentionsData, blessingsData, offeringsData, attentionData, proofsData] = await Promise.all([
+      databases.intentions.all(),
+      databases.blessings.all(),
+      databases.offerings.all(),
+      (async () => {
+        const entries = []
+        for await (const entry of databases.attentionSwitches.iterator()) {
+          entries.push({ _id: entry.hash, ...entry.value })
+        }
+        return entries
+      })(),
+      (async () => {
+        const entries = []
+        for await (const entry of databases.proofsOfService.iterator()) {
+          entries.push({ _id: entry.hash, ...entry.value })
+        }
+        return entries
+      })()
+    ])
+    
+    // Transform to expected format
+    const result = {
+      success: true,
+      data: {
+        intentions: intentionsData.map(doc => ({ _id: doc.key, ...doc.value })),
+        blessings: blessingsData.map(doc => ({ _id: doc.key, ...doc.value })),
+        offerings: offeringsData.map(doc => ({ _id: doc.key, ...doc.value })),
+        attentionSwitches: attentionData,
+        proofsOfService: proofsData
+      }
+    }
+    
+    console.log('Dashboard data loaded:', {
+      intentions: result.data.intentions.length,
+      blessings: result.data.blessings.length,
+      offerings: result.data.offerings.length,
+      attentionSwitches: result.data.attentionSwitches.length,
+      proofsOfService: result.data.proofsOfService.length
+    })
+    
+    return result
+    
+  } catch (error) {
+    console.error('Error loading dashboard data:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 // Navigation handlers
 ipcMain.handle('navigate-to', async (event, page) => {
   const pages = {
     'app': 'app.html',
     'offerings': 'offerings.html',
     'test-runner': 'renderer.html',
-    'database-browser': 'database-browser.html'
+    'database-browser': 'database-browser.html',
+    'token-explorer': 'token-explorer.html'
   }
   
   if (pages[page]) {

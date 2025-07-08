@@ -11,12 +11,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDatabaseList: () => ipcRenderer.invoke('get-database-list'),
   getDatabaseDocuments: (dbName) => ipcRenderer.invoke('get-database-documents', dbName),
   disconnectDatabases: () => ipcRenderer.invoke('disconnect-databases'),
+  refreshDatabases: () => ipcRenderer.invoke('refresh-databases'),
   addSampleData: () => ipcRenderer.invoke('add-sample-data'),
   getConnectionStatus: () => ipcRenderer.invoke('get-connection-status'),
+  
+  // Data retrieval APIs for dashboard
+  getAllDashboardData: () => ipcRenderer.invoke('get-all-dashboard-data'),
+  getAllIntentions: () => ipcRenderer.invoke('get-all-intentions'),
+  getAllBlessings: () => ipcRenderer.invoke('get-all-blessings'),
+  getAllOfferings: () => ipcRenderer.invoke('get-all-offerings'),
+  getAllAttentionSwitches: () => ipcRenderer.invoke('get-all-attention-switches'),
+  getAllProofsOfService: () => ipcRenderer.invoke('get-all-proofs-of-service'),
   
   // Event listeners
   onDatabasesConnected: (callback) => ipcRenderer.on('databases-connected', callback),
   onDatabasesConnectionFailed: (callback) => ipcRenderer.on('databases-connection-failed', callback),
+  onDatabaseUpdated: (callback) => ipcRenderer.on('database-updated', callback),
   
   // Navigation APIs
   navigateTo: (page) => ipcRenderer.invoke('navigate-to', page),

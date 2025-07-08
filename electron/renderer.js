@@ -11,22 +11,27 @@ let isRunning = false
 // Event listeners
 runButton.addEventListener('click', runTests)
 
+// Navigation functions
+function showTestRunner() {
+    // Already on test runner
+}
+
+function showDatabaseBrowser() {
+    window.electronAPI.navigateTo('database-browser')
+}
+
 async function runTests() {
     if (isRunning) return
     
-    console.log('Starting test run...')
     setRunning(true)
     setStatus('Running tests...', 'running')
     showResults()
     clearOutput()
     
     try {
-        console.log('Calling electronAPI.runTests()...')
         const result = await window.electronAPI.runTests()
-        console.log('Test result received:', result)
         displayResults(result)
     } catch (error) {
-        console.error('Test execution error:', error)
         displayError(error)
     } finally {
         setRunning(false)

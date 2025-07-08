@@ -13,7 +13,10 @@
     "test:run": "vitest run",
     "electron": "NODE_ENV=development electron .",
     "electron:build": "electron-builder",
-    "electron:pack": "electron-builder --publish=never"
+    "electron:pack": "electron-builder --publish=never",
+    "populate-test-data": "node scripts/populate-test-data.js",
+    "check-persistence": "node scripts/check-persistence.js",
+    "reset-db": "node scripts/reset-database.js"
   },
   "dependencies": {
     "@chainsafe/libp2p-gossipsub": "^14.1.1",
@@ -37,6 +40,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
     "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^7.0.0",

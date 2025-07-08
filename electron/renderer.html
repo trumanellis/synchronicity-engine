@@ -126,12 +126,45 @@
         .hidden {
             display: none;
         }
+        
+        .nav-tabs {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav-tab {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .nav-tab:hover {
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🌀 Synchronicity Engine</h1>
         <p>Test Runner Interface</p>
+    </div>
+    
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTestRunner()">Test Runner</button>
+        <button class="nav-tab" onclick="showDatabaseBrowser()">Database Browser</button>
     </div>
     
     <div class="controls">
