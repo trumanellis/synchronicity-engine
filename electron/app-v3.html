@@ -16,7 +16,7 @@
             background: radial-gradient(circle at 20% 30%, #1A2E17 0%, #0D1F0A 40%),
                         radial-gradient(circle at 80% 70%, #0F1A0C 0%, #0D1F0A 50%),
                         linear-gradient(135deg, #0D1F0A 0%, #1A2E17 50%, #0F1A0C 100%);
-            color: #E6C565;
+            color: #FFFFFF;
             min-height: 100vh;
             overflow-x: hidden;
             overflow-y: auto;
@@ -336,7 +336,7 @@
             background-color: rgba(0, 0, 0, 0.4);
         }
 
-        /* Now Resonating Panel */
+        /* Trending Intentions Panel */
         .resonating-list {
             flex: 1;
             overflow-y: auto;
@@ -374,7 +374,7 @@
             margin-bottom: 12px;
         }
 
-        /* Offerings Panel */
+        /* Community Offerings Panel */
         .offerings-list {
             flex: 1;
             overflow-y: auto;
@@ -438,92 +438,141 @@
         }
 
         /* Token hierarchy styles */
-        .token-item {
-            margin-bottom: 8px;
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.2);
-            transition: all 0.2s ease;
-        }
-
-        .token-content {
-            padding: 12px;
+        .token-circle {
+            /* Size will be set dynamically by JavaScript */
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.8), rgba(212, 175, 55, 0.4));
+            border: 2px solid rgba(212, 175, 55, 0.6);
             cursor: move;
+            transition: all 0.3s ease;
+            margin: 8px;
+            display: inline-block;
             position: relative;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+            user-select: none;
+            -webkit-user-drag: element;
         }
 
-        .token-content:hover {
-            background: rgba(212, 175, 55, 0.1);
+        .token-circle:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2) saturate(1.1);
         }
 
-        .token-content.dragging {
+        .token-circle:active {
+            transform: scale(0.95);
+        }
+
+
+        .tokens-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 16px;
+            justify-content: flex-start;
+            align-items: flex-start;
+        }
+        
+        .token-cluster {
+            position: relative;
+            display: inline-block;
+            cursor: move;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+        
+        .token-cluster:hover {
+            transform: scale(1.02);
+        }
+        
+        .token-cluster.dragging {
             opacity: 0.5;
             transform: rotate(2deg);
         }
-
-        .token-content.drag-over {
-            border: 2px dashed #D4AF37;
-            background: rgba(212, 175, 55, 0.2);
+        
+        .token-cluster.drag-over {
+            border: 3px solid #00ff88;
+            transform: scale(1.05);
         }
 
-        .token-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .token-title {
-            font-size: 0.85rem;
+        .token-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
             color: #E6C565;
-            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            pointer-events: none;
         }
 
-        .token-duration {
-            font-size: 0.75rem;
+        .token-circle:hover .token-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .token-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .token-duration-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
             color: #D4AF37;
             font-family: monospace;
-        }
-
-        .token-status {
-            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.8);
             padding: 2px 6px;
-            border-radius: 3px;
-            text-transform: uppercase;
-        }
-
-        .token-status.active {
-            background: rgba(0, 255, 136, 0.2);
-            color: #00ff88;
-        }
-
-        .token-status.potential {
-            background: rgba(212, 175, 55, 0.2);
-            color: #D4AF37;
-        }
-
-        .token-status.given {
-            background: rgba(255, 255, 255, 0.1);
-            color: #E6C565;
-        }
-
-        .token-hierarchy-toggle {
-            cursor: pointer;
-            color: #D4AF37;
-            font-size: 0.8rem;
-            margin-right: 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            white-space: nowrap;
+            pointer-events: none;
             user-select: none;
         }
 
-        .token-children {
-            margin-left: 20px;
-            padding-left: 12px;
-            border-left: 1px solid rgba(212, 175, 55, 0.3);
-            display: none;
+        /* HTML5 Draggable Tokens */
+        .html5-draggable {
+            transition: all 0.3s ease;
         }
 
-        .token-children.expanded {
-            display: block;
+        .html5-draggable:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .html5-draggable:active {
+            transform: scale(0.95);
+        }
+
+        .html5-draggable.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+            z-index: 1000;
+        }
+
+        /* Release zone styling */
+        #releaseZone {
+            transition: all 0.3s ease;
+        }
+
+        #releaseZone:hover {
+            background: rgba(0, 255, 136, 0.4) !important;
         }
 
         .username-input {
@@ -546,43 +595,19 @@
             box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
         }
 
-        .token-item {
-            padding: 12px;
-            border-radius: 8px;
-            background-color: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(212, 175, 55, 0.19);
-            margin-bottom: 12px;
-            cursor: move;
-        }
 
-        .token-name {
-            font-size: 0.875rem;
+        /* Text styles */
+        .list-item-title {
+            color: #C0C0C0;
             font-weight: 500;
+        }
+        
+        .normal-text {
+            color: #FFFFFF;
+        }
+        
+        .secondary-text {
             color: #E6C565;
-            margin-bottom: 4px;
-        }
-
-        .token-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.75rem;
-        }
-
-        .token-duration {
-            color: #D4AF37;
-        }
-
-        .token-status {
-            color: #E6C565;
-        }
-
-        .token-status.active {
-            color: #32CD32;
-        }
-
-        .token-status.given {
-            color: #FFD700;
         }
 
         /* Utility classes */
@@ -618,7 +643,7 @@
                     <div class="nav-dropdown" id="navDropdown">
                         <button class="nav-pill active" data-page="app">Intentions</button>
                         <button class="nav-pill" data-page="token-explorer">🔮 Token Explorer</button>
-                        <button class="nav-pill" data-page="offerings">Offerings</button>
+                        <button class="nav-pill" data-page="offerings">Community Offerings</button>
                         <button class="nav-pill" data-page="database-browser">Database</button>
                         <button class="nav-pill" data-page="test-runner">Tests</button>
                     </div>
@@ -644,7 +669,7 @@
                     </div>
                 </div>
                 
-                <h1 class="header-title">Synchronicity Engine</h1>
+                <h1 class="header-title">The Synchronicity Engine</h1>
             </div>
 
             <!-- Content Area -->
@@ -674,11 +699,12 @@
                             </div>
                         </div>
 
-                        <!-- Blessing Input -->
+                        <!-- Blessing Content -->
+                        <label style="color: #E6C565; margin-bottom: 8px; display: block; font-weight: 500;">Bless this intention with your words</label>
                         <textarea 
                             class="blessing-input"
-                            placeholder="Blessing text..."
-                            id="blessingText"
+                            placeholder="What draws you to this intention? How do you envision it manifesting?"
+                            id="blessingContent"
                             style="height: 60px; margin-bottom: 12px;"
                         ></textarea>
 
@@ -704,7 +730,7 @@
                     <!-- Now Resonating -->
                     <div class="panel" style="flex: 1; min-height: 300px;">
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="panel-header" style="margin-bottom: 0;">Now Resonating</h3>
+                            <h3 class="panel-header" style="margin-bottom: 0;">Trending Intentions</h3>
                             <button class="create-intention-btn" id="createIntentionBtn" style="padding: 8px 16px; background: rgba(212, 175, 55, 0.2); border: 1px solid #D4AF37; border-radius: 6px; color: #D4AF37; cursor: pointer; font-size: 0.8rem;">
                                 + Create New
                             </button>
@@ -721,7 +747,7 @@
                 <div class="column">
                     <div class="panel" style="min-height: 600px;">
                         <div class="flex justify-between items-center mb-4">
-                            <h2 class="panel-header" style="margin-bottom: 0;">Offerings</h2>
+                            <h2 class="panel-header" style="margin-bottom: 0;">Community Offerings</h2>
                             <div class="text-sm">Filters</div>
                         </div>
                         
@@ -757,7 +783,7 @@
                 />
                 
                 <!-- Tokens List -->
-                <div id="tokensList" style="max-height: none;">
+                <div id="tokensList" class="tokens-grid" style="max-height: none;">
                     <!-- Populated by JavaScript -->
                 </div>
             </div>
@@ -806,12 +832,12 @@
             <div style="margin-bottom: 24px; text-align: center;">
                 <p style="color: #E6C565; margin-bottom: 8px;">You're switching attention from:</p>
                 <p id="currentIntentionTitle" style="color: #D4AF37; font-weight: 600; font-size: 1.1rem; margin-bottom: 16px; font-style: italic;">Loading...</p>
-                <p style="color: #E6C565; font-size: 0.9rem;">How would you summarize your current blessing?</p>
+                <p style="color: #E6C565; font-size: 0.9rem;">How did you contribute your attention to this intention?</p>
             </div>
             <form id="blessingForm">
                 <div class="form-group mb-4">
                     <label style="color: #E6C565; margin-bottom: 8px; display: block;">Blessing Content</label>
-                    <textarea id="blessingContent" rows="4" required placeholder="Describe what you accomplished..."
+                    <textarea id="modalBlessingContent" rows="4" required placeholder="How did you contribute your attention to this intention? What emerged for you?"
                               style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid #D4AF37; border-radius: 8px; color: #E6C565; resize: vertical;"></textarea>
                 </div>
                 <div style="display: flex; gap: 16px; justify-content: flex-end;">
@@ -880,6 +906,13 @@
                     Close
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Token Details Popup -->
+    <div id="tokenDetailsPopup" style="display: none; position: fixed; z-index: 1000; background: rgba(0, 0, 0, 0.95); border: 1px solid #D4AF37; border-radius: 8px; padding: 12px; max-width: 250px; font-size: 0.85rem; color: #FFFFFF; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);">
+        <div id="tokenDetailsContent" style="line-height: 1.4;">
+            <!-- Token details will be populated here -->
         </div>
     </div>
 

@@ -13,9 +13,7 @@ let isConnected = false
 let pendingIntentionSwitch = null
 let dataLoaded = false
 
-// Token hierarchy state
-let tokenHierarchy = {}
-let draggedTokenId = null
+// Token state (simplified - no clustering)
 
 // Gratitude potential cache
 let gratitudePotentialCache = {}
@@ -42,9 +40,6 @@ const ERROR_MESSAGES = {
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Synchronicity Dashboard v3 initializing...')
-    
-    // Load token hierarchy from localStorage
-    loadTokenHierarchy()
     
     // Load data from OrbitDB
     await loadAllData()
@@ -225,7 +220,7 @@ async function updateDashboard() {
     const elementsExist = checkDOMElements()
     if (!elementsExist) {
         console.error('DOM elements not ready yet, delaying update...')
-        setTimeout(async () => await updateDashboard(), 100)
+        setTimeout(() => updateDashboard(), 100)
         return
     }
     
@@ -341,24 +336,33 @@ async function updateResonatingIntentions() {
     resonatingList.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">Calculating gratitude potential...</div>'
     
     try {
-        // Calculate proper gratitude potential for all intentions
+        // Filter out the active intention from the list
+        const inactiveIntentions = intentions.filter(intention => 
+            !activeIntention || intention._id !== activeIntention._id
+        )
+        
+        // Calculate proper gratitude potential for inactive intentions only
         const intentionsWithPotential = await Promise.all(
-            intentions.map(intention => calculateGratitudePotentialWithFallback(intention))
+            inactiveIntentions.map(intention => calculateGratitudePotentialWithFallback(intention))
         )
         
         // Sort by gratitude potential
         const sortedIntentions = intentionsWithPotential
             .sort((a, b) => b.gratitudePotential - a.gratitudePotential)
         
-        resonatingList.innerHTML = sortedIntentions.map(intention => 
-            `<div class="intention-item" onclick="selectIntention('${intention._id}')">
-                <div class="font-medium mb-1 text-sm line-clamp-2">${intention.title}</div>
-                <div class="flex justify-between items-center text-xs">
-                    <span class="opacity-70">by ${intention.createdBy}</span>
-                    <span style="color: #D4AF37">${formatDuration(intention.gratitudePotential)}</span>
-                </div>
-            </div>`
-        ).join('')
+        if (sortedIntentions.length === 0) {
+            resonatingList.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">No other intentions to resonate with</div>'
+        } else {
+            resonatingList.innerHTML = sortedIntentions.map(intention => 
+                `<div class="intention-item" onclick="selectIntention('${intention._id}')">
+                    <div class="font-medium mb-1 text-sm line-clamp-2">${intention.title}</div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="opacity-70">by ${intention.createdBy}</span>
+                        <span style="color: #D4AF37">${formatDuration(intention.gratitudePotential)}</span>
+                    </div>
+                </div>`
+            ).join('')
+        }
         
     } catch (error) {
         console.error('Error updating resonating intentions:', error)
@@ -481,9 +485,15 @@ function setupEventListeners() {
         })
     })
     
-    // Blessing text auto-save
-    const blessingText = document.getElementById('blessingText')
-    blessingText.addEventListener('input', debounce(saveBlessingContent, 500))
+    // Main blessing content auto-save
+    const blessingContent = document.getElementById('blessingContent')
+    blessingContent.addEventListener('input', debounce(saveBlessingContent, 500))
+    
+    // Modal blessing content auto-save
+    const modalBlessingContent = document.getElementById('modalBlessingContent')
+    if (modalBlessingContent) {
+        modalBlessingContent.addEventListener('input', debounce(saveModalBlessingContent, 500))
+    }
     
     // Username input
     const usernameInput = document.getElementById('usernameInput')
@@ -548,9 +558,30 @@ function setupEventListeners() {
 }
 
 function saveBlessingContent() {
-    const content = document.getElementById('blessingText').value
+    const content = document.getElementById('blessingContent').value
     localStorage.setItem('currentBlessingContent', content)
     console.log('Blessing content saved')
+}
+
+function saveModalBlessingContent() {
+    const content = document.getElementById('modalBlessingContent').value
+    localStorage.setItem('modalBlessingContent', content)
+    console.log('Modal blessing content saved')
+}
+
+function generateDefaultBlessingMessage() {
+    const now = new Date()
+    const timeString = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    })
+    const dateString = now.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+    })
+    
+    return `Held this intention in my attention at ${timeString} on ${dateString}. `
 }
 
 function toggleTimelineDetails() {
@@ -625,7 +656,10 @@ async function loadTimelineDetails(container) {
         let duration = 0
         try {
             if (window.electronAPI && window.electronAPI.calculateBlessingDuration) {
-                const result = await window.electronAPI.calculateBlessingDuration(blessing._id)
+                const result = await window.electronAPI.calculateBlessingDuration({
+                    blessingId: blessing._id,
+                    userId: blessing.userId
+                })
                 if (result.success) {
                     duration = result.duration
                 } else {
@@ -757,35 +791,42 @@ function startEventBasedUpdates() {
                 clearTimeout(updateTimeout)
             }
             
-            updateTimeout = setTimeout(async () => {
+            updateTimeout = setTimeout(() => {
                 console.log('Refreshing data due to database update...')
                 const startTime = performance.now()
                 
                 // Reload only the affected data if possible, otherwise reload all
-                if (updateInfo.database && updateInfo.operation === 'write') {
-                    await reloadSpecificDatabase(updateInfo.database)
-                } else {
-                    await loadAllData()
-                }
+                const reloadPromise = updateInfo.database && updateInfo.operation === 'write' 
+                    ? reloadSpecificDatabase(updateInfo.database)
+                    : loadAllData()
                 
-                const endTime = performance.now()
-                console.log(`Event-triggered update completed in ${Math.round(endTime - startTime)}ms`)
+                reloadPromise.then(() => {
+                    const endTime = performance.now()
+                    console.log(`Event-triggered update completed in ${Math.round(endTime - startTime)}ms`)
+                }).catch(error => {
+                    console.error('Error during event-triggered update:', error)
+                })
             }, 500) // 500ms debounce
         })
         
         // Fallback polling every 30 seconds as backup (much less frequent)
-        setInterval(async () => {
+        setInterval(() => {
             console.log('Periodic backup sync...')
-            await loadAllData()
+            loadAllData().catch(error => {
+                console.error('Error during periodic backup sync:', error)
+            })
         }, 30000)
         
         console.log('Event-based updates configured successfully')
     } else {
         console.log('ElectronAPI not available, falling back to polling')
         // Fallback to polling if no electronAPI
-        setInterval(async () => {
-            await loadAllData()
-            await updateDashboard()
+        setInterval(() => {
+            loadAllData().then(() => {
+                return updateDashboard()
+            }).catch(error => {
+                console.error('Error during polling update:', error)
+            })
         }, 5000)
     }
 }
@@ -952,33 +993,7 @@ function setupTokenDragAndDrop() {
     tokensList.addEventListener('drop', handleTokenDrop)
 }
 
-function handleTokenDragStart(e) {
-    e.dataTransfer.setData('text/plain', e.target.dataset.tokenId)
-    e.target.style.opacity = '0.5'
-    e.target.style.transform = 'rotate(2deg)'
-}
-
-function handleTokenDragEnd(e) {
-    e.target.style.opacity = '1'
-    e.target.style.transform = 'none'
-}
-
-function handleTokenDragOver(e) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-}
-
-function handleTokenDrop(e) {
-    e.preventDefault()
-    const draggedTokenId = e.dataTransfer.getData('text/plain')
-    const dropTarget = e.target.closest('.token-item')
-    
-    if (dropTarget && draggedTokenId) {
-        console.log(`Token ${draggedTokenId} dropped near token ${dropTarget.dataset.tokenId}`)
-        showToast('Token reordering not yet implemented', 'info')
-        // Future: Implement token hierarchy reordering logic here
-    }
-}
+// Removed duplicate token drag functions - using the complete implementation below
 
 // Utility functions
 function formatDuration(ms) {
@@ -1046,28 +1061,6 @@ function debounce(func, wait) {
     }
 }
 
-// Generate default blessing message with time duration
-function generateDefaultBlessingMessage() {
-    if (!attentionStartTime) {
-        return "Focused attention and made progress on this intention."
-    }
-    
-    const elapsed = Date.now() - attentionStartTime
-    const duration = formatDuration(elapsed)
-    
-    // Array of default blessing templates
-    const templates = [
-        `Spent ${duration} focused on this intention with mindful attention.`,
-        `Dedicated ${duration} of concentrated effort to this work.`,
-        `Invested ${duration} in thoughtful progress on this intention.`,
-        `Applied ${duration} of focused energy to move this intention forward.`,
-        `Committed ${duration} to advancing this intention with presence.`
-    ]
-    
-    // Select a template based on the current time (pseudo-random but consistent)
-    const templateIndex = Math.floor(Date.now() / 100000) % templates.length
-    return templates[templateIndex]
-}
 
 // Timer functionality
 function startTimer() {
@@ -1306,7 +1299,7 @@ async function handleCreateIntention(e) {
 async function handleBlessingSubmit(e) {
     e.preventDefault()
     
-    const blessingContent = document.getElementById('blessingContent').value
+    const blessingContent = document.getElementById('modalBlessingContent').value
     
     if (!blessingContent) {
         showToast('Please provide blessing content', 'error')
@@ -1324,26 +1317,33 @@ async function handleBlessingSubmit(e) {
             if (result?.success) {
                 showToast('Attention switched successfully!', 'success')
                 activeIntention = intentions.find(i => i._id === pendingIntentionSwitch)
+                // Reset attention start time for fresh timer when switching
+                attentionStartTime = Date.now()
                 startTimer()
                 await updateDashboard()
                 
-                // Clear the blessing text field since it was submitted
-                const blessingTextInput = document.getElementById('blessingText')
-                if (blessingTextInput) {
-                    blessingTextInput.value = ''
+                // Clear the main blessing content field since it was submitted
+                const blessingContentInput = document.getElementById('blessingContent')
+                if (blessingContentInput) {
+                    blessingContentInput.value = ''
                 }
+                
+                // Only clear form and close modal after successful submission
+                document.getElementById('blessingModal').style.display = 'none'
+                clearForm('blessingForm')
+                localStorage.removeItem('modalBlessingContent') // Clear saved modal content
+                localStorage.removeItem('currentBlessingContent') // Clear saved main content
+                pendingIntentionSwitch = null
             } else {
                 showToast('Failed to switch attention: ' + (result?.error || 'Unknown error'), 'error')
+                // Don't clear form or close modal on error - let user try again
             }
         }
-        
-        document.getElementById('blessingModal').style.display = 'none'
-        clearForm('blessingForm')
-        pendingIntentionSwitch = null
         
     } catch (error) {
         console.error('Error switching attention:', error)
         showToast('Error switching attention', 'error')
+        // Don't clear form or close modal on error - let user try again
     }
 }
 
@@ -1373,6 +1373,7 @@ async function handleProofSubmit(e) {
         }
         
         const result = await window.electronAPI?.postProofOfService(proofParams)
+        console.log('Proof posting result:', result)
         
         if (result?.success) {
             showToast('Proof of service posted successfully!', 'success')
@@ -1380,8 +1381,11 @@ async function handleProofSubmit(e) {
             clearForm('proofForm')
             
             // Refresh data to show new proof
+            console.log('Refreshing data after proof post...')
             await loadAllData()
             await updateDashboard()
+            
+            console.log('Proofs after refresh:', proofsOfService.map(p => ({ _id: p._id, hash: p.hash, by: p.by, content: p.content?.substring(0, 30) + '...' })))
             
             // Check for blessing assignment opportunities
             await checkForBlessingAssignmentOpportunities(activeIntention._id, result)
@@ -1626,21 +1630,8 @@ function showNotificationTimeline() {
 // Enhanced selectIntention function to show blessing modal if switching
 async function selectIntention(intentionId) {
     if (currentIntentionId && currentIntentionId !== intentionId) {
-        // Get the current blessing text from the input field
-        const currentBlessingText = document.getElementById('blessingText').value
-        
-        // Pre-populate the blessing modal with the current text or default message
-        const blessingContentTextarea = document.getElementById('blessingContent')
-        if (blessingContentTextarea) {
-            if (currentBlessingText && currentBlessingText.trim()) {
-                // Use existing blessing text if available
-                blessingContentTextarea.value = currentBlessingText
-            } else {
-                // Generate default blessing message with time duration
-                const defaultMessage = generateDefaultBlessingMessage()
-                blessingContentTextarea.value = defaultMessage
-            }
-        }
+        // Get the current blessing content from the main input field
+        const currentBlessingContent = document.getElementById('blessingContent').value
         
         // Show the current intention title in the modal
         const currentIntentionTitleElement = document.getElementById('currentIntentionTitle')
@@ -1652,10 +1643,28 @@ async function selectIntention(intentionId) {
         pendingIntentionSwitch = intentionId
         document.getElementById('blessingModal').style.display = 'flex'
         
+        // Pre-populate the modal with transferred content or default message
+        const modalBlessingContentTextarea = document.getElementById('modalBlessingContent')
+        if (modalBlessingContentTextarea) {
+            // First check if there's saved modal content
+            const savedContent = localStorage.getItem('modalBlessingContent')
+            if (savedContent && savedContent.trim()) {
+                // Use previously saved modal content
+                modalBlessingContentTextarea.value = savedContent
+            } else if (currentBlessingContent && currentBlessingContent.trim()) {
+                // Transfer content from main blessing field
+                modalBlessingContentTextarea.value = currentBlessingContent
+            } else {
+                // Generate default blessing message with timestamp
+                const defaultMessage = generateDefaultBlessingMessage()
+                modalBlessingContentTextarea.value = defaultMessage
+            }
+        }
+        
         // Focus on the blessing content textarea
         setTimeout(() => {
-            if (blessingContentTextarea) {
-                blessingContentTextarea.focus()
+            if (modalBlessingContentTextarea) {
+                modalBlessingContentTextarea.focus()
             }
         }, 100)
     } else {
@@ -1669,6 +1678,7 @@ async function selectIntention(intentionId) {
 // Check for blessing assignment opportunities after proof posting
 async function checkForBlessingAssignmentOpportunities(intentionId, proofResult) {
     console.log('Checking for blessing assignment opportunities...')
+    console.log('Received proofResult:', proofResult)
     
     // Find current user's potential blessings for this intention
     const userBlessings = blessings.filter(blessing => 
@@ -1709,9 +1719,30 @@ async function showBlessingAssignmentNotification(intentionId, userBlessings, pr
     const intention = intentions.find(i => i._id === intentionId)
     const intentionTitle = intention ? intention.title : 'Unknown Intention'
     
-    // Get service provider from proof result
-    const providers = Array.isArray(proofResult.result.by) ? proofResult.result.by : [proofResult.result.by]
-    const primaryProvider = providers[0]
+    // Always get the proof from the database - database is the source of truth
+    const proofId = proofResult.result?.hash || proofResult.result?._id
+    console.log('Looking for proofId:', proofId)
+    console.log('Available proofs:', proofsOfService.map(p => ({ _id: p._id, hash: p.hash, by: p.by, content: p.content?.substring(0, 50) + '...' })))
+    
+    let proofData = proofsOfService.find(p => p._id === proofId)
+    
+    if (!proofData) {
+        // Try to find by hash if _id doesn't work
+        proofData = proofsOfService.find(p => p.hash === proofId)
+    }
+    
+    if (!proofData) {
+        console.error('Could not find proof in database with ID:', proofId)
+        console.log('Available proofs:', proofsOfService.map(p => ({ _id: p._id, hash: p.hash, by: p.by, content: p.content?.substring(0, 50) + '...' })))
+        showToast('Error: Could not find proof in database', 'error')
+        return
+    }
+    
+    console.log('Found proof from database:', proofData)
+    
+    const providers = Array.isArray(proofData.by) ? proofData.by : [proofData.by]
+    const primaryProvider = providers[0] || 'Unknown User'
+    console.log('Primary provider from database:', primaryProvider)
     
     modal.innerHTML = `
         <div class="modal-content" style="background: rgba(0, 0, 0, 0.9); border: 2px solid #D4AF37; border-radius: 16px; padding: 32px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
@@ -1724,9 +1755,25 @@ async function showBlessingAssignmentNotification(intentionId, userBlessings, pr
                 <p style="color: #D4AF37; font-weight: 600; font-size: 1.1rem; margin-bottom: 16px; font-style: italic;">
                     ${intentionTitle}
                 </p>
-                <p style="color: #E6C565; font-size: 0.9rem; margin-bottom: 16px;">
-                    ${proofResult.result.content || 'Service completed'}
-                </p>
+                
+                <!-- Proof of Service Details -->
+                <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left;">
+                    <h4 style="color: #D4AF37; margin-bottom: 8px; font-size: 0.9rem;">Proof of Service:</h4>
+                    <p style="color: #E6C565; font-size: 0.9rem; margin-bottom: 12px; line-height: 1.4;">
+                        ${proofData.content || 'Service completed'}
+                    </p>
+                    ${proofData.timestamp ? `
+                        <p style="color: #E6C565; font-size: 0.8rem; opacity: 0.8; margin-bottom: 8px;">
+                            📅 Completed: ${new Date(proofData.timestamp).toLocaleString()}
+                        </p>
+                    ` : ''}
+                    ${proofData.media && proofData.media.length > 0 ? `
+                        <p style="color: #E6C565; font-size: 0.8rem; opacity: 0.8;">
+                            📎 Media: ${proofData.media.join(', ')}
+                        </p>
+                    ` : ''}
+                </div>
+                
                 <p style="color: #E6C565; font-size: 0.9rem;">
                     You have potential blessings to release. Select which ones to give:
                 </p>
@@ -1756,7 +1803,10 @@ async function showBlessingAssignmentNotification(intentionId, userBlessings, pr
         let duration = 0
         try {
             if (window.electronAPI && window.electronAPI.calculateBlessingDuration) {
-                const result = await window.electronAPI.calculateBlessingDuration(blessing._id)
+                const result = await window.electronAPI.calculateBlessingDuration({
+                    blessingId: blessing._id,
+                    userId: blessing.userId
+                })
                 if (result.success) {
                     duration = result.duration
                 } else {
@@ -1806,7 +1856,10 @@ async function showBlessingAssignmentNotification(intentionId, userBlessings, pr
     })
     
     confirmBtn.addEventListener('click', async () => {
-        await handleBlessingAssignments(modal, primaryProvider, proofResult.result._id)
+        console.log('Blessing assignment clicked, proofData:', proofData)
+        const proofId = proofData._id || proofData.hash
+        console.log('Using proofId:', proofId)
+        await handleBlessingAssignments(modal, primaryProvider, proofId)
     })
     
     // Close on background click
@@ -1831,10 +1884,17 @@ async function handleBlessingAssignments(modal, serviceProvider, proofId) {
     
     try {
         // Get the actual proof document to get the correct provider information (like v1)
-        const proof = proofsOfService.find(p => p._id === proofId)
+        let proof = proofsOfService.find(p => p._id === proofId)
         
         if (!proof) {
-            showToast('Proof not found', 'error')
+            // Try to find by hash if _id doesn't work
+            proof = proofsOfService.find(p => p.hash === proofId)
+        }
+        
+        if (!proof) {
+            console.error('Proof not found in proofsOfService:', proofId)
+            console.log('Available proofs:', proofsOfService.map(p => ({ _id: p._id, hash: p.hash })))
+            showToast('Proof not found - please try refreshing the page', 'error')
             return
         }
         
@@ -2042,95 +2102,611 @@ async function calculateGratitudePotentialWithFallback(intention) {
     }
 }
 
-// Update tokens display with hierarchical structure
+// Update tokens display with HTML5 drag & drop clustering
 async function updateTokensDisplay() {
     const tokensList = document.getElementById('tokensList')
     if (!tokensList) return
     
-    // Get user's blessings/tokens
-    const userTokens = blessings.filter(blessing => blessing.stewardId === currentUser)
+    // Get user's tokens that have been given (Tokens of Gratitude)
+    const userTokens = blessings.filter(blessing => 
+        blessing.stewardId === currentUser && blessing.status === 'given'
+    )
+    
+    // Debug: Log token filtering
+    console.log(`🔍 Displaying ${userTokens.length} tokens for user ${currentUser}`)
     
     if (userTokens.length === 0) {
         tokensList.innerHTML = `
             <div style="text-align: center; color: #E6C565; opacity: 0.7; padding: 20px;">
-                No tokens yet. Create intentions to start earning tokens!
+                No Tokens of Gratitude yet. Complete work and receive tokens from others!
             </div>
         `
         return
     }
     
-    // Get root tokens (tokens with no parent)
-    const rootTokens = getRootTokens(userTokens)
-    
-    // Create hierarchical structure
+    // Clear existing tokens
     tokensList.innerHTML = ''
-    for (const token of rootTokens) {
-        const tokenElement = await createHierarchicalTokenElement(token, userTokens, 0)
-        tokensList.appendChild(tokenElement)
+    
+    // Setup container for simple token layout
+    tokensList.style.cssText = `
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        padding: 20px;
+        min-height: 300px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        justify-content: center;
+        align-items: flex-start;
+    `
+    
+    // Create simple circular tokens
+    await createSimpleTokenDisplay(userTokens, tokensList)
+}
+
+// Create simple circular token display without clustering
+async function createSimpleTokenDisplay(tokens, container) {
+    console.log('🔧 Creating simple token display with', tokens.length, 'tokens')
+    
+    for (const token of tokens) {
+        const tokenElement = await createDraggableToken(token)
+        container.appendChild(tokenElement)
+    }
+    
+    console.log('✅ Simple token display created with', tokens.length, 'tokens')
+}
+
+// Get color scheme based on duration ratio (0-1)
+function getDurationColor(ratio) {
+    // Allow dropping on the container
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+    })
+    
+    container.addEventListener('drop', async (e) => {
+        e.preventDefault()
+        const draggedTokenId = e.dataTransfer.getData('text/plain')
+        const dropTarget = e.target.closest('[data-token-id], #releaseZone')
+        
+        if (!draggedTokenId) return
+        
+        console.log('🎯 Container drop:', draggedTokenId, 'on', dropTarget?.id || dropTarget?.dataset.tokenId)
+        
+        // Handle different drop targets
+        if (dropTarget?.id === 'releaseZone' && getTokenParent(draggedTokenId)) {
+            // Release from parent
+            await releaseTokenFromParent(draggedTokenId)
+            showReleaseZoneSuccess()
+        } else if (dropTarget?.dataset.tokenId && dropTarget.dataset.tokenId !== draggedTokenId) {
+            // Create cluster
+            await createTokenCluster(dropTarget.dataset.tokenId, draggedTokenId)
+        }
+        
+        // Reset visual feedback
+        resetAllDropTargetStyles()
+    })
+}
+
+// Create token cluster layout (parent with children arranged around it)
+async function createTokenClusterLayout(rootToken, allTokens, container, startPosition) {
+    const tokenElement = await createDraggableToken(rootToken)
+    
+    // Position the root token
+    tokenElement.style.position = 'absolute'
+    tokenElement.style.left = startPosition.x + 'px'
+    tokenElement.style.top = startPosition.y + 'px'
+    
+    container.appendChild(tokenElement)
+    
+    // Get children and arrange them around the parent
+    const children = getTokenChildren(rootToken._id)
+    const childTokens = children.map(childId => allTokens.find(t => t._id === childId)).filter(Boolean)
+    
+    if (childTokens.length > 0) {
+        const radius = 60
+        const angleStep = (2 * Math.PI) / childTokens.length
+        
+        for (let i = 0; i < childTokens.length; i++) {
+            const childElement = await createDraggableToken(childTokens[i])
+            const angle = i * angleStep
+            const x = startPosition.x + Math.cos(angle) * radius
+            const y = startPosition.y + Math.sin(angle) * radius
+            
+            childElement.style.position = 'absolute'
+            childElement.style.left = x + 'px'
+            childElement.style.top = y + 'px'
+            
+            container.appendChild(childElement)
+        }
+    }
+    
+    // Return next position (move to the right for next cluster)
+    return {
+        x: startPosition.x + 140,
+        y: startPosition.y + (Math.random() - 0.5) * 60 // Add some vertical variance
     }
 }
 
-// Create a hierarchical token element
-async function createHierarchicalTokenElement(token, allTokens, depth) {
+// Create a draggable HTML token element
+async function createDraggableToken(token) {
     const tokenId = token._id
-    const children = getTokenChildren(tokenId)
-    const childTokens = children.map(childId => allTokens.find(t => t._id === childId)).filter(Boolean)
-    const hasChildren = childTokens.length > 0
-    const isExpanded = tokenHierarchy[tokenId]?.expanded !== false
     
-    const tokenDiv = document.createElement('div')
-    tokenDiv.className = 'token-item'
-    tokenDiv.setAttribute('data-token-id', tokenId)
-    
-    // Calculate actual duration using engine
-    let duration = '0s'
+    // Calculate duration and size
+    let durationMs = 0
     try {
         if (window.electronAPI && window.electronAPI.calculateBlessingDuration) {
-            const result = await window.electronAPI.calculateBlessingDuration(token._id)
+            const result = await window.electronAPI.calculateBlessingDuration({
+                blessingId: token._id,
+                userId: token.userId
+            })
             if (result.success) {
-                duration = formatDuration(result.duration)
+                durationMs = result.duration
             }
         }
     } catch (error) {
         console.warn('Engine blessing duration calculation failed, using fallback:', error)
-        const fallbackMs = calculateBlessingDuration(token)
-        duration = formatDuration(fallbackMs)
+        durationMs = calculateBlessingDuration(token)
     }
     
-    tokenDiv.innerHTML = `
-        <div class="token-content" draggable="true" data-token-id="${tokenId}">
-            <div class="token-header">
-                <div style="display: flex; align-items: center;">
-                    ${hasChildren ? `<span class="token-hierarchy-toggle" onclick="toggleTokenHierarchy('${tokenId}')" style="cursor: pointer;">${isExpanded ? '▼' : '▶'}</span>` : '<span style="width: 16px;"></span>'}
-                    <span class="token-title">${token.intentionId ? intentions.find(i => i._id === token.intentionId)?.title || 'Unknown Intention' : 'Token'}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="token-duration">${duration}</span>
-                    <span class="token-status ${token.status}">${token.status}</span>
-                </div>
-            </div>
-            ${token.content ? `<div style="font-size: 0.75rem; color: #E6C565; opacity: 0.8; margin-top: 4px;">${token.content}</div>` : ''}
-        </div>
-        ${hasChildren ? `<div class="token-children ${isExpanded ? 'expanded' : ''}" id="hierarchy-children-${tokenId}"></div>` : ''}
+    const duration = formatDuration(durationMs)
+    
+    // Calculate size based on duration
+    const minSize = 30
+    const maxSize = 80
+    const minDuration = 60000 // 1 minute
+    const maxDuration = 86400000 // 24 hours
+    
+    const safeDurationMs = Math.max(durationMs, minDuration)
+    const logMin = Math.log(minDuration)
+    const logMax = Math.log(maxDuration)
+    const logDuration = Math.log(safeDurationMs)
+    const sizeRatio = (logDuration - logMin) / (logMax - logMin)
+    const size = Math.max(minSize, Math.min(maxSize, minSize + (maxSize - minSize) * sizeRatio))
+    
+    // Get colors
+    const colors = getDurationColor(sizeRatio)
+    
+    // Get intention title
+    const intentionTitle = token.intentionId ? 
+        intentions.find(i => i._id === token.intentionId)?.title || 'Unknown Intention' : 
+        'Token'
+    
+    // Create token element
+    const tokenDiv = document.createElement('div')
+    tokenDiv.className = 'token-circle'
+    tokenDiv.setAttribute('data-token-id', tokenId)
+    
+    // Calculate responsive font size based on token size
+    const fontSize = Math.max(8, Math.min(14, size * 0.2))
+    const showText = size >= 40 // Only show text for tokens 40px or larger
+    
+    tokenDiv.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, ${colors.light}, ${colors.dark});
+        border: 3px solid ${colors.border};
+        box-shadow: 0 4px 12px ${colors.shadow};
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${fontSize}px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        user-select: none;
     `
     
-    // Add drag and drop event listeners
-    const tokenContent = tokenDiv.querySelector('.token-content')
-    tokenContent.addEventListener('dragstart', handleHierarchyDragStart)
-    tokenContent.addEventListener('dragover', handleHierarchyDragOver)
-    tokenContent.addEventListener('drop', handleHierarchyDrop)
-    tokenContent.addEventListener('dragend', handleHierarchyDragEnd)
+    // Only show duration text for larger tokens, otherwise leave empty
+    tokenDiv.textContent = showText ? duration : ''
+    tokenDiv.title = `${intentionTitle} - ${duration}`
     
-    // Add children if expanded
-    if (hasChildren && isExpanded) {
-        const childrenContainer = tokenDiv.querySelector(`#hierarchy-children-${tokenId}`)
-        for (const childToken of childTokens) {
-            const childElement = await createHierarchicalTokenElement(childToken, allTokens, depth + 1)
-            childrenContainer.appendChild(childElement)
-        }
-    }
+    // Add click handler for details
+    tokenDiv.addEventListener('click', (e) => {
+        showTokenDetails(token, e.target)
+    })
     
     return tokenDiv
+}
+
+// Show token details in a popup
+async function showTokenDetails(token, circleElement) {
+    const popup = document.getElementById('tokenDetailsPopup')
+    const content = document.getElementById('tokenDetailsContent')
+    
+    if (!popup || !content) {
+        console.warn('Token details popup elements not found')
+        return
+    }
+    
+    try {
+        // Calculate duration
+        let duration = '0s'
+        try {
+            if (window.electronAPI && window.electronAPI.calculateBlessingDuration) {
+                const result = await window.electronAPI.calculateBlessingDuration({
+                    blessingId: token._id,
+                    userId: token.userId
+                })
+                if (result.success) {
+                    duration = formatDuration(result.duration)
+                }
+            }
+        } catch (error) {
+            console.warn('Engine blessing duration calculation failed, using fallback:', error)
+            const fallbackMs = calculateBlessingDuration(token)
+            duration = formatDuration(fallbackMs)
+        }
+        
+        // Get intention details
+        const intention = token.intentionId ? 
+            intentions.find(i => i._id === token.intentionId) : null
+        
+        // Format timestamp
+        const timestamp = new Date(token.timestamp).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        })
+        
+        // Create minimal content
+        content.innerHTML = `
+            <div style="margin-bottom: 8px;">
+                <strong style="color: #C0C0C0;">${intention?.title || 'Unknown Intention'}</strong>
+            </div>
+            <div style="margin-bottom: 6px; font-size: 0.8rem;">
+                <span style="color: #D4AF37;">Duration:</span> <span style="color: #FFFFFF;">${duration}</span>
+            </div>
+            <div style="margin-bottom: 6px; font-size: 0.8rem;">
+                <span style="color: #D4AF37;">Author:</span> <span style="color: #FFFFFF;">${token.userId || 'Unknown'}</span>
+            </div>
+            <div style="margin-bottom: 6px; font-size: 0.8rem;">
+                <span style="color: #D4AF37;">Created:</span> <span style="color: #FFFFFF;">${timestamp}</span>
+            </div>
+            ${token.content ? `<div style="margin-top: 8px; font-style: italic; font-size: 0.8rem; color: #FFFFFF; opacity: 0.8;">"${token.content.length > 80 ? token.content.substring(0, 80) + '...' : token.content}"</div>` : ''}
+        `
+        
+        // Position popup near the circle
+        const rect = circleElement.getBoundingClientRect()
+        
+        // Position to the right of the circle, or left if not enough space
+        let left = rect.right + 10
+        if (left + 250 > window.innerWidth) {
+            left = rect.left - 260 // Position to the left
+        }
+        
+        // Position vertically centered with the circle
+        let top = rect.top + (rect.height / 2) - 50
+        
+        // Ensure popup stays within viewport
+        if (top < 10) top = 10
+        if (top + 100 > window.innerHeight) top = window.innerHeight - 110
+        
+        popup.style.left = `${left}px`
+        popup.style.top = `${top}px`
+        popup.style.display = 'block'
+        
+        // Set up auto-dismiss on any click outside
+        setTimeout(() => {
+            const handleClickOutside = (e) => {
+                if (!popup.contains(e.target)) {
+                    popup.style.display = 'none'
+                    document.removeEventListener('click', handleClickOutside)
+                }
+            }
+            document.addEventListener('click', handleClickOutside)
+        }, 10) // Small delay to prevent immediate closing
+        
+    } catch (error) {
+        console.error('Error showing token details:', error)
+        showToast('Error showing token details', 'error')
+    }
+}
+
+// Create or update token clustering
+async function createTokenCluster(parentTokenId, childTokenId) {
+    try {
+        // Prevent self-parenting and circular references
+        if (parentTokenId === childTokenId) {
+            console.warn('Cannot make token a child of itself')
+            return
+        }
+        
+        // Check for circular references (would child become ancestor of parent?)
+        if (wouldCreateCircularReference(parentTokenId, childTokenId)) {
+            console.warn('Cannot create circular reference')
+            return
+        }
+        
+        // Initialize hierarchy if not exists
+        if (!tokenHierarchy[parentTokenId]) {
+            tokenHierarchy[parentTokenId] = { children: [], expanded: true }
+        }
+        if (!tokenHierarchy[childTokenId]) {
+            tokenHierarchy[childTokenId] = { children: [], parent: null }
+        }
+        
+        // Remove child from any existing parent
+        if (tokenHierarchy[childTokenId].parent) {
+            const oldParent = tokenHierarchy[childTokenId].parent
+            if (tokenHierarchy[oldParent] && tokenHierarchy[oldParent].children) {
+                const index = tokenHierarchy[oldParent].children.indexOf(childTokenId)
+                if (index > -1) {
+                    tokenHierarchy[oldParent].children.splice(index, 1)
+                }
+            }
+        }
+        
+        // Add child to new parent
+        if (!tokenHierarchy[parentTokenId].children.includes(childTokenId)) {
+            tokenHierarchy[parentTokenId].children.push(childTokenId)
+        }
+        tokenHierarchy[childTokenId].parent = parentTokenId
+        
+        // Save hierarchy and refresh display
+        saveTokenHierarchy()
+        await updateTokensDisplay()
+        
+        showToast(`Token clustered: child added to parent`, 'success')
+        console.log(`Created cluster: ${parentTokenId} (parent) -> ${childTokenId} (child)`)
+        console.log('Updated token hierarchy:', tokenHierarchy)
+        
+    } catch (error) {
+        console.error('Error creating token cluster:', error)
+        showToast('Failed to create token cluster', 'error')
+    }
+}
+
+// Check if adding a child would create a circular reference
+function wouldCreateCircularReference(parentId, childId) {
+    let current = parentId
+    const visited = new Set()
+    
+    while (current && !visited.has(current)) {
+        if (current === childId) {
+            return true // Circular reference detected
+        }
+        visited.add(current)
+        current = tokenHierarchy[current]?.parent
+    }
+    
+    return false
+}
+
+// Get root tokens (tokens with no parent)
+function getRootTokens(allTokens) {
+    return allTokens.filter(token => !getTokenParent(token._id))
+}
+
+// Get token children
+function getTokenChildren(tokenId) {
+    return tokenHierarchy[tokenId] ? tokenHierarchy[tokenId].children || [] : []
+}
+
+// Get token parent
+function getTokenParent(tokenId) {
+    return tokenHierarchy[tokenId] ? tokenHierarchy[tokenId].parent || null : null
+}
+
+// Release a token from its parent (make it a root token)
+async function releaseTokenFromParent(tokenId) {
+    const parentId = getTokenParent(tokenId)
+    
+    if (!parentId) {
+        showToast('Token is already at root level', 'info')
+        return
+    }
+    
+    try {
+        // Remove from parent's children list
+        removeTokenFromParent(tokenId, parentId)
+        
+        // Clear the parent reference, keeping children intact
+        if (tokenHierarchy[tokenId]) {
+            delete tokenHierarchy[tokenId].parent
+            // Note: We deliberately keep tokenHierarchy[tokenId].children intact
+        }
+        
+        saveTokenHierarchy()
+        
+        // Refresh the display
+        await updateTokensDisplay()
+        
+        const childCount = getTokenChildren(tokenId).length
+        const childText = childCount > 0 ? ` (with ${childCount} child${childCount > 1 ? 'ren' : ''})` : ''
+        showToast(`🔓 Token released to root level${childText}`, 'success')
+        console.log(`Token ${tokenId} released from parent ${parentId}, preserving ${childCount} children`)
+        
+    } catch (error) {
+        console.error('Error releasing token from parent:', error)
+        showToast('Failed to release token', 'error')
+    }
+}
+
+// Remove token from parent's children list
+function removeTokenFromParent(tokenId, parentId) {
+    if (tokenHierarchy[parentId] && tokenHierarchy[parentId].children) {
+        const index = tokenHierarchy[parentId].children.indexOf(tokenId)
+        if (index > -1) {
+            tokenHierarchy[parentId].children.splice(index, 1)
+        }
+    }
+}
+
+// Highlight offering elements as drop targets
+function highlightOfferingDropTargets(highlight) {
+    const offeringItems = document.querySelectorAll('.offering-item')
+    const offeringsList = document.getElementById('offeringsList')
+    
+    if (highlight) {
+        // Add highlight styling to all offering items
+        offeringItems.forEach(item => {
+            item.style.border = '2px dashed rgba(255, 193, 7, 0.8)'
+            item.style.backgroundColor = 'rgba(255, 193, 7, 0.1)'
+            item.style.transition = 'all 0.3s ease'
+        })
+        
+        // Highlight the offerings container
+        if (offeringsList) {
+            offeringsList.style.border = '2px dashed rgba(255, 193, 7, 0.6)'
+            offeringsList.style.backgroundColor = 'rgba(255, 193, 7, 0.05)'
+        }
+    } else {
+        // Remove highlight styling
+        offeringItems.forEach(item => {
+            item.style.border = ''
+            item.style.backgroundColor = ''
+            item.style.transition = ''
+        })
+        
+        if (offeringsList) {
+            offeringsList.style.border = ''
+            offeringsList.style.backgroundColor = ''
+        }
+    }
+}
+
+// HTML5 drag event handlers
+function handleHTML5DragStart(e) {
+    const tokenId = e.currentTarget.dataset.tokenId
+    draggedTokenId = tokenId
+    isDragging = true
+    
+    console.log('🎯 HTML5 drag start:', tokenId)
+    
+    // Set drag data
+    e.dataTransfer.setData('text/plain', tokenId)
+    e.dataTransfer.effectAllowed = 'move'
+    
+    // Visual feedback
+    e.currentTarget.style.opacity = '0.5'
+    e.currentTarget.style.transform = 'scale(1.1)'
+    e.currentTarget.style.borderColor = '#ff6b6b'
+    e.currentTarget.style.borderWidth = '3px'
+    
+    // Show release zone if token has parent
+    const releaseZone = document.getElementById('releaseZone')
+    if (releaseZone && getTokenParent(tokenId)) {
+        releaseZone.style.opacity = '1'
+        releaseZone.style.pointerEvents = 'auto'
+    }
+    
+    // Highlight offering drop targets
+    highlightOfferingDropTargets(true)
+}
+
+function handleHTML5DragEnd(e) {
+    const tokenId = e.currentTarget.dataset.tokenId
+    draggedTokenId = null
+    isDragging = false
+    
+    console.log('🎯 HTML5 drag end:', tokenId)
+    
+    // Reset visual feedback
+    resetAllDropTargetStyles()
+}
+
+function handleHTML5DragOver(e) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    
+    // Visual feedback for drop target
+    if (e.currentTarget.dataset.tokenId !== draggedTokenId) {
+        e.currentTarget.style.transform = 'scale(1.15)'
+        e.currentTarget.style.borderColor = '#00ff88'
+        e.currentTarget.style.borderWidth = '3px'
+    }
+}
+
+function handleHTML5Drop(e) {
+    e.preventDefault()
+    const parentTokenId = e.currentTarget.dataset.tokenId
+    const childTokenId = draggedTokenId
+    
+    if (parentTokenId && childTokenId && parentTokenId !== childTokenId) {
+        console.log('🔗 Creating HTML5 cluster:', parentTokenId, '←', childTokenId)
+        createTokenCluster(parentTokenId, childTokenId)
+    }
+}
+
+// Helper functions for HTML5 drag & drop
+function resetAllDropTargetStyles() {
+    // Reset all tokens
+    document.querySelectorAll('.token-circle').forEach(token => {
+        token.style.opacity = ''
+        token.style.transform = ''
+        token.style.borderColor = ''
+        token.style.borderWidth = ''
+    })
+    
+    // Hide release zone
+    const releaseZone = document.getElementById('releaseZone')
+    if (releaseZone) {
+        releaseZone.style.opacity = '0'
+        releaseZone.style.pointerEvents = 'none'
+    }
+    
+    // Reset offering highlights
+    highlightOfferingDropTargets(false)
+}
+
+function showReleaseZoneSuccess() {
+    const releaseZone = document.getElementById('releaseZone')
+    if (releaseZone) {
+        releaseZone.style.backgroundColor = 'rgba(0, 255, 136, 0.6)'
+        releaseZone.style.transform = 'scale(1.05)'
+        
+        setTimeout(() => {
+            releaseZone.style.backgroundColor = 'rgba(0, 255, 136, 0.3)'
+            releaseZone.style.transform = 'scale(1)'
+            releaseZone.style.opacity = '0'
+            releaseZone.style.pointerEvents = 'none'
+        }, 500)
+    }
+}
+
+
+// ✅ HTML5 Drag & Drop implementation complete!
+
+// Get color scheme based on duration ratio (0-1)
+function getDurationColor(ratio) {
+    // Color progression: blue (short) -> green -> yellow -> orange -> red (long)
+    const colorStops = [
+        { r: 100, g: 150, b: 255 }, // Light blue (short duration)
+        { r: 100, g: 255, b: 150 }, // Light green
+        { r: 230, g: 197, b: 101 }, // Golden yellow (original color)
+        { r: 255, g: 165, b: 50 },  // Orange
+        { r: 255, g: 100, b: 100 }  // Light red (long duration)
+    ]
+    
+    // Calculate which color segment we're in
+    const segmentSize = 1 / (colorStops.length - 1)
+    const segmentIndex = Math.floor(ratio / segmentSize)
+    const segmentRatio = (ratio % segmentSize) / segmentSize
+    
+    // Handle edge case for maximum ratio
+    const fromIndex = Math.min(segmentIndex, colorStops.length - 2)
+    const toIndex = fromIndex + 1
+    
+    // Interpolate between the two colors
+    const from = colorStops[fromIndex]
+    const to = colorStops[toIndex]
+    
+    const r = Math.round(from.r + (to.r - from.r) * segmentRatio)
+    const g = Math.round(from.g + (to.g - from.g) * segmentRatio)
+    const b = Math.round(from.b + (to.b - from.b) * segmentRatio)
+    
+    // Create variations for different parts of the circle
+    const light = `rgba(${r}, ${g}, ${b}, 0.8)`
+    const dark = `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}, 0.6)`
+    const border = `rgba(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)}, 0.8)`
+    const shadow = `rgba(${r}, ${g}, ${b}, 0.3)`
+    
+    return { light, dark, border, shadow }
 }
 
 // Error handling functions
