@@ -766,15 +766,20 @@ ipcMain.handle('get-current-attention', async (event, userId) => {
   }
 })
 
-ipcMain.handle('calculate-blessing-duration', async (event, blessingId) => {
+ipcMain.handle('calculate-blessing-duration', async (event, params) => {
   if (!databases) {
     return { success: false, error: 'Not connected to databases' }
   }
   
   try {
-    const { calcBlessingDuration } = await import('../src/lib/synchronicity-engine.js')
+    const { calculateBlessingDuration } = await import('../src/lib/synchronicity-engine.js')
     
-    const duration = await calcBlessingDuration(blessingId, databases.attentionSwitches)
+    const duration = await calculateBlessingDuration({
+      blessingId: params.blessingId,
+      userId: params.userId,
+      databases,
+      currentTime: params.currentTime || Date.now()
+    })
     return { success: true, duration }
   } catch (error) {
     console.error('Error calculating blessing duration:', error)
@@ -830,8 +835,9 @@ ipcMain.handle('bid-on-offering', async (event, params) => {
   try {
     const { bidOnOffering } = await import('../src/lib/synchronicity-engine.js')
     
-    const result = await bidOnOffering(params, databases)
-    return { success: true, result }
+    // Add databases to params object as expected by the function
+    const result = await bidOnOffering({ ...params, databases })
+    return { success: true, ...result }
   } catch (error) {
     console.error('Error bidding on offering:', error)
     return { success: false, error: error.message }
@@ -964,7 +970,8 @@ ipcMain.handle('get-all-proofs-of-service', async () => {
   try {
     const entries = []
     for await (const entry of databases.proofsOfService.iterator()) {
-      entries.push({ _id: entry.hash, ...entry.value })
+      console.log('Loading proof entry:', { hash: entry.hash, key: entry.key, value: entry.value })
+      entries.push({ _id: entry.hash || entry.key, hash: entry.hash, ...entry.value })
     }
     return { success: true, data: entries }
   } catch (error) {
@@ -997,7 +1004,8 @@ ipcMain.handle('get-all-dashboard-data', async () => {
       (async () => {
         const entries = []
         for await (const entry of databases.proofsOfService.iterator()) {
-          entries.push({ _id: entry.hash, ...entry.value })
+          console.log('Loading proof entry (batch):', { hash: entry.hash, key: entry.key, value: entry.value })
+          entries.push({ _id: entry.hash || entry.key, hash: entry.hash, ...entry.value })
         }
         return entries
       })()

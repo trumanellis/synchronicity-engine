@@ -372,6 +372,42 @@ async function updateResonatingIntentions() {
 
 // Synchronicities functionality removed - data is now available in notifications timeline modal
 
+// Render tokens that have been bid on an offering
+function renderOfferingTokens(offering) {
+    if (!offering.tokenOffers || offering.tokenOffers.length === 0) {
+        return '<div class="offering-tokens-container"></div>'
+    }
+    
+    const tokenElements = offering.tokenOffers.map((bid, index) => {
+        // Find the token in blessings to get duration and details
+        const token = blessings.find(b => b._id === bid.topToken)
+        if (!token) return ''
+        
+        const duration = calculateBlessingDuration(token)
+        const durationText = formatDuration(duration)
+        const colors = getTokenColors(token.userId, duration)
+        
+        return `<div class="offering-token-bid" style="
+            background: ${colors.light};
+            border: 1px solid ${colors.border};
+            border-radius: 12px;
+            padding: 4px 8px;
+            margin: 2px;
+            font-size: 10px;
+            display: inline-block;
+            box-shadow: ${colors.shadow};
+        ">
+            <span style="color: ${colors.dark}; font-weight: 500;">#${index + 1}</span>
+            <span style="color: ${colors.dark}; opacity: 0.8;">${bid.userId}</span>
+            <span style="color: #D4AF37; font-weight: 500;">${durationText}</span>
+        </div>`
+    }).join('')
+    
+    return `<div class="offering-tokens-container" style="margin-top: 8px;">
+        ${tokenElements}
+    </div>`
+}
+
 // Update offerings list
 function updateOfferings() {
     const offeringsList = document.getElementById('offeringsList')
@@ -382,17 +418,21 @@ function updateOfferings() {
         offeringsList.innerHTML = '<div style="text-align: center; opacity: 0.7; padding: 20px;">No offerings found</div>'
     } else {
         offeringsList.innerHTML = offerings.map(offering => 
-            `<div class="offering-item" onclick="selectOffering('${offering._id}')">
+            `<div class="offering-item" onclick="selectOffering('${offering._id}')" data-offering-id="${offering._id}">
                 <div class="text-sm font-medium mb-2 line-clamp-2">${offering.title}</div>
                 <div class="text-xs mb-1">by ${offering.host || 'Host TBD'}</div>
                 <div class="text-xs mb-1" style="color: #D4AF37">${formatOfferingTime(offering.time)}</div>
                 <div class="text-xs mb-2 opacity-80">${offering.place || offering.location || 'Location TBD'}</div>
-                <div class="flex justify-between items-center text-xs">
+                <div class="flex justify-between items-center text-xs mb-2">
                     <span>${offering.slotsAvailable || offering.slots || 0} slots</span>
                     <span style="color: #D4AF37">${offering.tokenOffers?.length || offering.bids || 0} bids</span>
                 </div>
+                ${renderOfferingTokens(offering)}
             </div>`
         ).join('')
+        
+        // Add drop event handlers to all offering items
+        setupOfferingDropHandlers()
     }
 }
 
@@ -2158,34 +2198,39 @@ async function createSimpleTokenDisplay(tokens, container) {
 
 // Get color scheme based on duration ratio (0-1)
 function getDurationColor(ratio) {
-    // Allow dropping on the container
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault()
-        e.dataTransfer.dropEffect = 'move'
-    })
+    // Color progression: blue (short) -> green -> yellow -> orange -> red (long)
+    const colorStops = [
+        { r: 100, g: 150, b: 255 }, // Light blue (short duration)
+        { r: 100, g: 255, b: 150 }, // Light green
+        { r: 230, g: 197, b: 101 }, // Golden yellow (original color)
+        { r: 255, g: 165, b: 50 },  // Orange
+        { r: 255, g: 100, b: 100 }  // Light red (long duration)
+    ]
     
-    container.addEventListener('drop', async (e) => {
-        e.preventDefault()
-        const draggedTokenId = e.dataTransfer.getData('text/plain')
-        const dropTarget = e.target.closest('[data-token-id], #releaseZone')
-        
-        if (!draggedTokenId) return
-        
-        console.log('🎯 Container drop:', draggedTokenId, 'on', dropTarget?.id || dropTarget?.dataset.tokenId)
-        
-        // Handle different drop targets
-        if (dropTarget?.id === 'releaseZone' && getTokenParent(draggedTokenId)) {
-            // Release from parent
-            await releaseTokenFromParent(draggedTokenId)
-            showReleaseZoneSuccess()
-        } else if (dropTarget?.dataset.tokenId && dropTarget.dataset.tokenId !== draggedTokenId) {
-            // Create cluster
-            await createTokenCluster(dropTarget.dataset.tokenId, draggedTokenId)
-        }
-        
-        // Reset visual feedback
-        resetAllDropTargetStyles()
-    })
+    // Calculate which color segment we're in
+    const segmentSize = 1 / (colorStops.length - 1)
+    const segmentIndex = Math.floor(ratio / segmentSize)
+    const segmentRatio = (ratio % segmentSize) / segmentSize
+    
+    // Handle edge case for maximum ratio
+    const fromIndex = Math.min(segmentIndex, colorStops.length - 2)
+    const toIndex = fromIndex + 1
+    
+    // Interpolate between the two colors
+    const from = colorStops[fromIndex]
+    const to = colorStops[toIndex]
+    
+    const r = Math.round(from.r + (to.r - from.r) * segmentRatio)
+    const g = Math.round(from.g + (to.g - from.g) * segmentRatio)
+    const b = Math.round(from.b + (to.b - from.b) * segmentRatio)
+    
+    // Create variations for different parts of the circle
+    const light = `rgba(${r}, ${g}, ${b}, 0.8)`
+    const dark = `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}, 0.6)`
+    const border = `rgba(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)}, 0.8)`
+    const shadow = `rgba(${r}, ${g}, ${b}, 0.3)`
+    
+    return { light, dark, border, shadow }
 }
 
 // Create token cluster layout (parent with children arranged around it)
@@ -2276,6 +2321,7 @@ async function createDraggableToken(token) {
     const tokenDiv = document.createElement('div')
     tokenDiv.className = 'token-circle'
     tokenDiv.setAttribute('data-token-id', tokenId)
+    tokenDiv.draggable = true
     
     // Calculate responsive font size based on token size
     const fontSize = Math.max(8, Math.min(14, size * 0.2))
@@ -2304,9 +2350,44 @@ async function createDraggableToken(token) {
     tokenDiv.textContent = showText ? duration : ''
     tokenDiv.title = `${intentionTitle} - ${duration}`
     
-    // Add click handler for details
+    // Add drag event handlers
+    tokenDiv.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', tokenId)
+        e.dataTransfer.setData('application/json', JSON.stringify({
+            tokenId: tokenId,
+            userId: token.userId,
+            intentionTitle: intentionTitle,
+            duration: duration
+        }))
+        e.dataTransfer.effectAllowed = 'copy'
+        
+        // Visual feedback
+        tokenDiv.style.opacity = '0.5'
+        tokenDiv.style.transform = 'scale(1.1)'
+        
+        console.log('🎯 Token drag started:', tokenId)
+        
+        // Highlight all offerings as potential drop targets
+        highlightOfferingsForTokenDrop(true)
+    })
+    
+    tokenDiv.addEventListener('dragend', (e) => {
+        // Reset visual feedback
+        tokenDiv.style.opacity = ''
+        tokenDiv.style.transform = ''
+        
+        console.log('🎯 Token drag ended:', tokenId)
+        
+        // Remove offering highlights
+        highlightOfferingsForTokenDrop(false)
+    })
+
+    // Add click handler for details (only if not dragging)
     tokenDiv.addEventListener('click', (e) => {
-        showTokenDetails(token, e.target)
+        // Small delay to distinguish from dragstart
+        setTimeout(() => {
+            showTokenDetails(token, e.target)
+        }, 100)
     })
     
     return tokenDiv
@@ -2477,20 +2558,8 @@ function wouldCreateCircularReference(parentId, childId) {
     return false
 }
 
-// Get root tokens (tokens with no parent)
-function getRootTokens(allTokens) {
-    return allTokens.filter(token => !getTokenParent(token._id))
-}
 
-// Get token children
-function getTokenChildren(tokenId) {
-    return tokenHierarchy[tokenId] ? tokenHierarchy[tokenId].children || [] : []
-}
 
-// Get token parent
-function getTokenParent(tokenId) {
-    return tokenHierarchy[tokenId] ? tokenHierarchy[tokenId].parent || null : null
-}
 
 // Release a token from its parent (make it a root token)
 async function releaseTokenFromParent(tokenId) {
@@ -2527,15 +2596,6 @@ async function releaseTokenFromParent(tokenId) {
     }
 }
 
-// Remove token from parent's children list
-function removeTokenFromParent(tokenId, parentId) {
-    if (tokenHierarchy[parentId] && tokenHierarchy[parentId].children) {
-        const index = tokenHierarchy[parentId].children.indexOf(tokenId)
-        if (index > -1) {
-            tokenHierarchy[parentId].children.splice(index, 1)
-        }
-    }
-}
 
 // Highlight offering elements as drop targets
 function highlightOfferingDropTargets(highlight) {
@@ -2672,41 +2732,235 @@ function showReleaseZoneSuccess() {
 
 // ✅ HTML5 Drag & Drop implementation complete!
 
-// Get color scheme based on duration ratio (0-1)
-function getDurationColor(ratio) {
-    // Color progression: blue (short) -> green -> yellow -> orange -> red (long)
-    const colorStops = [
-        { r: 100, g: 150, b: 255 }, // Light blue (short duration)
-        { r: 100, g: 255, b: 150 }, // Light green
-        { r: 230, g: 197, b: 101 }, // Golden yellow (original color)
-        { r: 255, g: 165, b: 50 },  // Orange
-        { r: 255, g: 100, b: 100 }  // Light red (long duration)
-    ]
+
+// Get token colors based on user and duration
+function getTokenColors(userId, duration) {
+    // Calculate size ratio for color (similar to how tokens are sized)
+    const maxDuration = 2 * 60 * 60 * 1000 // 2 hours as max for color calculation
+    const sizeRatio = Math.min(duration / maxDuration, 1)
     
-    // Calculate which color segment we're in
-    const segmentSize = 1 / (colorStops.length - 1)
-    const segmentIndex = Math.floor(ratio / segmentSize)
-    const segmentRatio = (ratio % segmentSize) / segmentSize
+    return getDurationColor(sizeRatio)
+}
+
+// Highlight offerings as potential drop targets for token bidding
+function highlightOfferingsForTokenDrop(highlight) {
+    const offeringItems = document.querySelectorAll('.offering-item')
+    const offeringsList = document.getElementById('offeringsList')
     
-    // Handle edge case for maximum ratio
-    const fromIndex = Math.min(segmentIndex, colorStops.length - 2)
-    const toIndex = fromIndex + 1
+    if (highlight) {
+        console.log('🎯 Highlighting offerings for token drop')
+        
+        // Add highlight styling to all offering items
+        offeringItems.forEach(item => {
+            item.style.border = '3px dashed rgba(0, 255, 136, 0.8)'
+            item.style.backgroundColor = 'rgba(0, 255, 136, 0.1)'
+            item.style.transform = 'scale(1.02)'
+            item.style.transition = 'all 0.3s ease'
+            item.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.5)'
+        })
+        
+        // Highlight the offerings container
+        if (offeringsList) {
+            offeringsList.style.border = '2px dashed rgba(0, 255, 136, 0.6)'
+            offeringsList.style.backgroundColor = 'rgba(0, 255, 136, 0.05)'
+        }
+    } else {
+        console.log('🎯 Removing offering highlights')
+        
+        // Remove highlight styling
+        offeringItems.forEach(item => {
+            item.style.border = ''
+            item.style.backgroundColor = ''
+            item.style.transform = ''
+            item.style.transition = ''
+            item.style.boxShadow = ''
+        })
+        
+        if (offeringsList) {
+            offeringsList.style.border = ''
+            offeringsList.style.backgroundColor = ''
+        }
+    }
+}
+
+// Setup drop event handlers for offering items
+function setupOfferingDropHandlers() {
+    const offeringItems = document.querySelectorAll('.offering-item')
     
-    // Interpolate between the two colors
-    const from = colorStops[fromIndex]
-    const to = colorStops[toIndex]
-    
-    const r = Math.round(from.r + (to.r - from.r) * segmentRatio)
-    const g = Math.round(from.g + (to.g - from.g) * segmentRatio)
-    const b = Math.round(from.b + (to.b - from.b) * segmentRatio)
-    
-    // Create variations for different parts of the circle
-    const light = `rgba(${r}, ${g}, ${b}, 0.8)`
-    const dark = `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}, 0.6)`
-    const border = `rgba(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)}, 0.8)`
-    const shadow = `rgba(${r}, ${g}, ${b}, 0.3)`
-    
-    return { light, dark, border, shadow }
+    offeringItems.forEach(item => {
+        const offeringId = item.dataset.offeringId
+        
+        // Allow dropping on offering items
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault() // Allow drop
+            
+            // Enhanced visual feedback during drag over
+            item.style.border = '3px solid rgba(0, 255, 136, 1.0)'
+            item.style.backgroundColor = 'rgba(0, 255, 136, 0.2)'
+            item.style.transform = 'scale(1.05)'
+        })
+        
+        item.addEventListener('dragleave', (e) => {
+            // Reset to default highlight when leaving
+            item.style.border = '3px dashed rgba(0, 255, 136, 0.8)'
+            item.style.backgroundColor = 'rgba(0, 255, 136, 0.1)'
+            item.style.transform = 'scale(1.02)'
+        })
+        
+        item.addEventListener('drop', async (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            
+            console.log('🎯 Token dropped on offering:', offeringId)
+            
+            try {
+                // Get token data from drag transfer
+                const tokenData = JSON.parse(e.dataTransfer.getData('application/json'))
+                
+                if (!tokenData || !tokenData.tokenId) {
+                    console.error('Invalid token data in drop event')
+                    showToast('Invalid token data', 'error')
+                    return
+                }
+                
+                console.log('🎯 Processing bid with token:', tokenData.tokenId)
+                
+                // Call our helper function from the test (matches the TDD approach)
+                const bidResult = await handleTokenDropOnOffering({
+                    tokenId: tokenData.tokenId,
+                    offeringId: offeringId,
+                    userId: tokenData.userId,
+                })
+                
+                if (bidResult.success) {
+                    console.log('🎯 Bid successful:', bidResult)
+                    showToast(`Bid placed successfully! You're in position #${bidResult.bidPosition}`, 'success')
+                    
+                    // Immediately transfer token visually
+                    await transferTokenToOffering(tokenData, offeringId, bidResult.bidPosition)
+                    
+                    // Then refresh all data to ensure consistency
+                    await loadAllData()
+                } else {
+                    console.error('🎯 Bid failed:', bidResult.error)
+                    showToast(`Bid failed: ${bidResult.error}`, 'error')
+                }
+                
+            } catch (error) {
+                console.error('🎯 Error processing token drop:', error)
+                showToast('Error processing bid', 'error')
+            }
+        })
+    })
+}
+
+// Transfer token visually from tokens list to offering
+async function transferTokenToOffering(tokenData, offeringId, bidPosition) {
+    try {
+        console.log('🎯 Transferring token visually:', tokenData.tokenId, 'to offering:', offeringId)
+        
+        // Find and remove the token from the tokens display
+        const tokenElement = document.querySelector(`[data-token-id="${tokenData.tokenId}"]`)
+        if (tokenElement) {
+            // Add animation class for smooth removal
+            tokenElement.style.transition = 'all 0.3s ease'
+            tokenElement.style.opacity = '0'
+            tokenElement.style.transform = 'scale(0.8)'
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (tokenElement.parentNode) {
+                    tokenElement.parentNode.removeChild(tokenElement)
+                }
+            }, 300)
+        }
+        
+        // Find the offering and add the token immediately
+        const offeringElement = document.querySelector(`[data-offering-id="${offeringId}"]`)
+        if (offeringElement) {
+            const tokensContainer = offeringElement.querySelector('.offering-tokens-container')
+            if (tokensContainer) {
+                // Find the token details for display
+                const token = blessings.find(b => b._id === tokenData.tokenId)
+                if (token) {
+                    const duration = calculateBlessingDuration(token)
+                    const durationText = formatDuration(duration)
+                    const colors = getTokenColors(token.userId, duration)
+                    
+                    // Create the new token bid element
+                    const newTokenBid = document.createElement('div')
+                    newTokenBid.className = 'offering-token-bid'
+                    newTokenBid.style.cssText = `
+                        background: ${colors.light};
+                        border: 1px solid ${colors.border};
+                        border-radius: 12px;
+                        padding: 4px 8px;
+                        margin: 2px;
+                        font-size: 10px;
+                        display: inline-block;
+                        box-shadow: ${colors.shadow};
+                        opacity: 0;
+                        transform: scale(0.8);
+                        transition: all 0.3s ease;
+                    `
+                    newTokenBid.innerHTML = `
+                        <span style="color: ${colors.dark}; font-weight: 500;">#${bidPosition}</span>
+                        <span style="color: ${colors.dark}; opacity: 0.8;">${tokenData.userId}</span>
+                        <span style="color: #D4AF37; font-weight: 500;">${durationText}</span>
+                    `
+                    
+                    // Add to container
+                    tokensContainer.appendChild(newTokenBid)
+                    
+                    // Animate in
+                    setTimeout(() => {
+                        newTokenBid.style.opacity = '1'
+                        newTokenBid.style.transform = 'scale(1)'
+                    }, 50)
+                }
+            }
+            
+            // Update the bid count
+            const bidCountElement = offeringElement.querySelector('span[style*="color: #D4AF37"]')
+            if (bidCountElement) {
+                const currentBids = parseInt(bidCountElement.textContent.split(' ')[0]) || 0
+                bidCountElement.textContent = `${currentBids + 1} bids`
+            }
+        }
+        
+    } catch (error) {
+        console.error('🎯 Error in visual token transfer:', error)
+    }
+}
+
+// Helper function to handle token drops on offerings (matches test implementation)
+async function handleTokenDropOnOffering({ tokenId, offeringId, userId }) {
+    try {
+        // Use the core engine function via electron API
+        const result = await window.electronAPI.bidOnOffering({
+            offeringId,
+            userId,
+            topTokenId: tokenId
+        })
+        
+        if (result.success) {
+            return {
+                success: true,
+                bidPosition: result.position,
+                tokenId
+            }
+        } else {
+            return {
+                success: false,
+                error: result.error
+            }
+        }
+    } catch (error) {
+        return {
+            success: false,
+            error: error.message
+        }
+    }
 }
 
 // Error handling functions
