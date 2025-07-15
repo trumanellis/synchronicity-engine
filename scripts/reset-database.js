@@ -18,7 +18,7 @@ import {
     assignBlessing,
     createOffering,
     bidOnOffering
-} from '../src/lib/synchronicity-engine.js'
+} from '../dist/lib/synchronicity-engine.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -101,9 +101,9 @@ async function insertSampleData(databases) {
     console.log('🎯 Creating intentions...')
     
     const intention1 = await setIntention({
-        userId: 'sage_willow',
-        title: 'Restore the sacred grove with native medicinal plants',
-        blessingContent: 'May this grove become a sanctuary where ancient plant wisdom flows through every leaf and root.',
+        userId: 'alex_gardener',
+        title: 'Plant 10 native seedlings in the community garden',
+        blessingContent: 'I feel drawn to nurture new life and create more green spaces in our neighborhood.',
         databases,
         timestamp: baseTime
     })
@@ -113,9 +113,9 @@ async function insertSampleData(databases) {
     await sleep(100)
 
     const intention2 = await setIntention({
-        userId: 'river_stone', 
-        title: 'Build community meditation labyrinth',
-        blessingContent: 'Each stone placed with intention, creating pathways for deep contemplation and inner peace.',
+        userId: 'maria_composting', 
+        title: 'Build one compost bin for the neighborhood',
+        blessingContent: 'I envision waste becoming nourishment, completing the cycle of abundance.',
         databases,
         timestamp: baseTime + (1 * 60 * 60 * 1000) // 1 hour later
     })
@@ -124,9 +124,9 @@ async function insertSampleData(databases) {
     await sleep(100)
 
     const intention3 = await setIntention({
-        userId: 'dawn_keeper',
-        title: 'Establish seed library for heirloom varieties', 
-        blessingContent: 'Preserving the genetic wisdom of our ancestors, ensuring abundance for future generations.',
+        userId: 'david_cleanup',
+        title: 'Remove invasive plants from local park trail', 
+        blessingContent: 'I see this trail clear and welcoming, allowing native plants to flourish.',
         databases,
         timestamp: baseTime + (2 * 60 * 60 * 1000) // 2 hours later
     })
@@ -135,9 +135,9 @@ async function insertSampleData(databases) {
     await sleep(100)
 
     const intention4 = await setIntention({
-        userId: 'cosmic_heart',
-        title: 'Create healing sound bath sanctuary',
-        blessingContent: 'Sacred frequencies to restore harmony between body, mind, and spirit.',
+        userId: 'sarah_seeds',
+        title: 'Collect and package native wildflower seeds',
+        blessingContent: 'I imagine these seeds spreading beauty and supporting pollinators everywhere.',
         databases,
         timestamp: baseTime + (3 * 60 * 60 * 1000) // 3 hours later
     })
@@ -146,9 +146,9 @@ async function insertSampleData(databases) {
     await sleep(100)
 
     const intention5 = await setIntention({
-        userId: 'moon_sister',
-        title: 'Organize monthly earth blessing ceremony',
-        blessingContent: 'Calling in the sacred feminine to bless our beautiful earth with love and healing.',
+        userId: 'tom_maintenance',
+        title: 'Repair broken bird houses at nature center',
+        blessingContent: 'I hold the vision of birds finding safe homes and raising their young here.',
         databases,
         timestamp: baseTime + (4 * 60 * 60 * 1000) // 4 hours later
     })
@@ -157,94 +157,94 @@ async function insertSampleData(databases) {
     // Step 2: Create attention switches and additional blessings
     console.log('💫 Creating attention switches and collaborative blessings...')
 
-    // Luna's attention journey
+    // Emma's attention journey
     await switchAttention({
-        userId: 'luna_bright',
+        userId: 'emma_volunteer',
         toIntentionId: intention1.intentionId,
-        blessingContent: 'Grateful to tend this sacred space where healing plants will flourish for generations.',
+        blessingContent: 'I feel called to nurture these seedlings and create more living spaces. My attention flows toward growth and healing.',
         databases,
         timestamp: baseTime + (1.5 * 60 * 60 * 1000) // 1.5 hours after start
     })
-    console.log('✓ Luna joined sacred grove intention')
+    console.log('✓ Emma joined tree planting')
 
     await sleep(100)
 
-    // Forest heart's attention journey  
+    // Jake's attention journey  
     await switchAttention({
-        userId: 'forest_heart',
-        toIntentionId: intention3.intentionId,
-        blessingContent: 'Each seed carries the memory of earth\'s abundance. Honored to be a keeper of this legacy.',
+        userId: 'jake_helper',
+        toIntentionId: intention2.intentionId,
+        blessingContent: 'I envision completing the cycle of abundance through composting. My attention supports transformation and renewal.',
         databases,
         timestamp: baseTime + (2.5 * 60 * 60 * 1000) // 2.5 hours after start
     })
-    console.log('✓ Forest heart joined seed library intention')
+    console.log('✓ Jake joined compost bin building')
 
     await sleep(100)
 
     // Truman's attention journey
     await switchAttention({
         userId: 'truman',
-        toIntentionId: intention2.intentionId,
-        blessingContent: 'The labyrinth calls to me - creating sacred paths for inner reflection.',
+        toIntentionId: intention3.intentionId,
+        blessingContent: 'I hold the vision of native plants thriving in this space. My attention supports the restoration of natural balance.',
         databases,
         timestamp: baseTime + (3.5 * 60 * 60 * 1000) // 3.5 hours after start
     })
-    console.log('✓ Truman joined labyrinth intention')
+    console.log('✓ Truman joined trail cleanup')
 
     await sleep(100)
 
-    // Luna switches to sound sanctuary
+    // Emma switches to seed collection
     await switchAttention({
-        userId: 'luna_bright',
+        userId: 'emma_volunteer',
         toIntentionId: intention4.intentionId,
-        blessingContent: 'Sound and vibration heal the deep places within us.',
+        blessingContent: 'I am drawn to preserving the genetic wisdom of these plants. My attention honors the continuity of life.',
         databases,
         timestamp: baseTime + (4.5 * 60 * 60 * 1000) // 4.5 hours after start
     })
-    console.log('✓ Luna switched to sound sanctuary')
+    console.log('✓ Emma switched to seed collection')
 
     await sleep(100)
 
-    // Forest heart switches to earth ceremony
+    // Jake switches to bird house repair
     await switchAttention({
-        userId: 'forest_heart',
+        userId: 'jake_helper',
         toIntentionId: intention5.intentionId,
-        blessingContent: 'The earth speaks through ceremony, and we listen with grateful hearts.',
+        blessingContent: 'I envision birds finding safe sanctuary here. My attention nurtures the creatures that share our world.',
         databases,
         timestamp: baseTime + (5.5 * 60 * 60 * 1000) // 5.5 hours after start
     })
-    console.log('✓ Forest heart switched to earth ceremony')
+    console.log('✓ Jake switched to bird house repair')
 
     await sleep(100)
 
-    // Truman switches to sacred grove
+    // Truman switches to tree planting
     await switchAttention({
         userId: 'truman',
         toIntentionId: intention1.intentionId,
-        blessingContent: 'Joining the plant medicine work with deep reverence.',
+        blessingContent: 'I see these seedlings growing into mighty trees. My attention supports their journey toward strength and beauty.',
         databases,
         timestamp: baseTime + (6.5 * 60 * 60 * 1000) // 6.5 hours after start
     })
-    console.log('✓ Truman switched to sacred grove')
+    console.log('✓ Truman switched to tree planting')
 
     await sleep(100)
 
     // Step 3: Complete some work and create proofs of service
     console.log('📸 Creating proofs of service...')
 
-    // Sage, Luna, and Truman complete work on the sacred grove
+    // Alex, Emma, and Truman complete work on tree planting
     await switchAttention({
-        userId: 'sage_willow',
+        userId: 'alex_gardener',
         toIntentionId: null, // Switch away to complete the blessing
-        blessingContent: 'Work completed with deep gratitude for the plant spirits.',
+        blessingContent: 'I have poured my love and attention into this vision of abundant green life. The seedlings now carry this blessing forward.',
         databases,
         timestamp: baseTime + (7 * 60 * 60 * 1000) // 7 hours after start
     })
 
     await switchAttention({
-        userId: 'luna_bright',
+        userId: 'emma_volunteer',
         toIntentionId: null, // Switch away to complete the blessing
-        blessingContent: 'The sound work is complete, resonating with plant frequencies.',
+        blessingContent: 'My attention has honored the wisdom held in these seeds. I trust they will bloom into beauty and abundance.',
         databases,
         timestamp: baseTime + (7.1 * 60 * 60 * 1000)
     })
@@ -252,16 +252,16 @@ async function insertSampleData(databases) {
     await switchAttention({
         userId: 'truman',
         toIntentionId: null, // Switch away to complete the blessing  
-        blessingContent: 'Sacred grove work complete - the plants are singing.',
+        blessingContent: 'My loving attention has been given to these growing trees. I see them flourishing and bringing life to this space.',
         databases,
         timestamp: baseTime + (7.2 * 60 * 60 * 1000)
     })
 
     const proof1 = await postProofOfService({
         intentionId: intention1.intentionId,
-        by: ['sage_willow', 'luna_bright', 'truman'],
-        content: 'Planted 12 native medicinal herbs including echinacea, calendula, and nettle. Created sacred spiral pattern with sound healing integration.',
-        media: ['ipfs://QmSacredGrovePhoto1', 'ipfs://QmSacredGrovePhoto2'],
+        by: ['alex_gardener', 'emma_volunteer', 'truman'],
+        content: 'Successfully planted 10 native oak seedlings in the community garden northeast section. Added mulch and watered thoroughly.',
+        media: ['ipfs://QmTreePlantingPhoto'],
         databases,
         timestamp: baseTime + (7.3 * 60 * 60 * 1000)
     })
@@ -269,9 +269,9 @@ async function insertSampleData(databases) {
 
     await sleep(100)
 
-    // River stone and truman make progress on labyrinth
+    // Maria and Jake complete compost bin
     await switchAttention({
-        userId: 'river_stone',
+        userId: 'maria_composting',
         toIntentionId: null, // Switch away to complete the blessing
         databases,
         timestamp: baseTime + (8 * 60 * 60 * 1000)
@@ -279,9 +279,9 @@ async function insertSampleData(databases) {
 
     const proof2 = await postProofOfService({
         intentionId: intention2.intentionId,
-        by: ['river_stone', 'truman'],
-        content: 'Laid foundation stones for meditation labyrinth in seven-circuit classical pattern.',
-        media: ['ipfs://QmLabyrinthProgress'],
+        by: ['maria_composting', 'jake_helper'],
+        content: 'Completed building one wooden compost bin with 3 compartments. Added first layer of brown and green materials.',
+        media: ['ipfs://QmCompostBinPhoto'],
         databases,
         timestamp: baseTime + (8.1 * 60 * 60 * 1000)
     })
@@ -289,20 +289,20 @@ async function insertSampleData(databases) {
 
     await sleep(100)
 
-    // Forest heart completes seed library work
+    // David and Truman complete trail cleanup
     await switchAttention({
-        userId: 'forest_heart',
+        userId: 'david_cleanup',
         toIntentionId: null, // Switch away to complete blessing
-        blessingContent: 'Seeds organized and blessed for future abundance.',
+        blessingContent: 'I have focused my intention on clearing space for native plants to thrive. My attention blesses this restoration.',
         databases,
         timestamp: baseTime + (8.5 * 60 * 60 * 1000)
     })
 
     const proof3 = await postProofOfService({
         intentionId: intention3.intentionId,
-        by: ['forest_heart', 'dawn_keeper'],
-        content: 'Catalogued and organized 150 heirloom seed varieties. Created seed blessing ceremony space.',
-        media: ['ipfs://QmSeedLibraryPhoto'],
+        by: ['david_cleanup', 'truman'],
+        content: 'Cleared 200 feet of park trail removing garlic mustard and other invasive plants. Filled 8 bags for disposal.',
+        media: ['ipfs://QmTrailCleanupPhoto'],
         databases,
         timestamp: baseTime + (8.6 * 60 * 60 * 1000)
     })
@@ -411,7 +411,7 @@ async function insertSampleData(databases) {
     await switchAttention({
         userId: 'truman',
         toIntentionId: intention5.intentionId,
-        blessingContent: 'Honored to support the sacred work of earth healing.',
+        blessingContent: 'I am holding the vision of safe homes for our feathered friends. My attention supports their wellbeing and joy.',
         databases,
         timestamp: Date.now() - (15 * 60 * 1000) // 15 minutes ago
     })
@@ -422,7 +422,7 @@ async function insertSampleData(databases) {
     await switchAttention({
         userId: 'luna_bright',
         toIntentionId: intention4.intentionId,
-        blessingContent: 'Returning to sound healing work with renewed focus.',
+        blessingContent: 'I envision these seeds growing into beautiful wildflowers that will feed pollinators and bring joy to all who see them.',
         databases,
         timestamp: Date.now() - (8 * 60 * 1000) // 8 minutes ago
     })
@@ -433,7 +433,7 @@ async function insertSampleData(databases) {
     await switchAttention({
         userId: 'forest_heart',
         toIntentionId: intention3.intentionId,
-        blessingContent: 'Continuing seed library curation with love.',
+        blessingContent: 'I hold the intention of a clear, welcoming trail where native plants can reclaim their rightful place.',
         databases,
         timestamp: Date.now() - (3 * 60 * 1000) // 3 minutes ago
     })

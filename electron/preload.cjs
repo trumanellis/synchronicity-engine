@@ -35,12 +35,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setIntention: (params) => ipcRenderer.invoke('set-intention', params),
   switchAttention: (params) => ipcRenderer.invoke('switch-attention', params),
   getCurrentAttention: (userId) => ipcRenderer.invoke('get-current-attention', userId),
-  calculateBlessingDuration: (blessingId) => ipcRenderer.invoke('calculate-blessing-duration', blessingId),
+  calculateBlessingDuration: (params) => ipcRenderer.invoke('calculate-blessing-duration', params),
   calculateGratitudePotential: (params) => ipcRenderer.invoke('calculate-gratitude-potential', params),
   
   // Offerings APIs
   createOffering: (params) => ipcRenderer.invoke('create-offering', params),
   bidOnOffering: (params) => ipcRenderer.invoke('bid-on-offering', params),
+  withdrawBid: (params) => ipcRenderer.invoke('withdraw-bid', params),
   acceptOfferingBids: (params) => ipcRenderer.invoke('accept-offering-bids', params),
   
   // Proof of Service APIs

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "emitDeclarationOnly": false
+  },
+  "include": ["src/lib/synchronicity-engine-v2.ts", "src/lib/types-v2.ts"],
+  "exclude": ["node_modules", "dist", "test", "electron", "src/lib/artifact-system.ts"]
+}

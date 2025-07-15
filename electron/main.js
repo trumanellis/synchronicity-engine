@@ -699,7 +699,7 @@ ipcMain.handle('set-intention', async (event, params) => {
   }
   
   try {
-    const { setIntention } = await import('../src/lib/synchronicity-engine.js')
+    const { setIntention } = await import('../dist/lib/synchronicity-engine.js')
     
     const intentionParams = {
       userId: params.userId,
@@ -728,7 +728,7 @@ ipcMain.handle('switch-attention', async (event, params) => {
   }
   
   try {
-    const { switchAttention } = await import('../src/lib/synchronicity-engine.js')
+    const { switchAttention } = await import('../dist/lib/synchronicity-engine.js')
     
     const switchParams = {
       userId: params.userId,
@@ -756,7 +756,7 @@ ipcMain.handle('get-current-attention', async (event, userId) => {
   }
   
   try {
-    const { getCurrentAttention } = await import('../src/lib/synchronicity-engine.js')
+    const { getCurrentAttention } = await import('../dist/lib/synchronicity-engine.js')
     
     const result = await getCurrentAttention(userId, databases.attentionSwitches)
     return { success: true, attention: result }
@@ -772,7 +772,7 @@ ipcMain.handle('calculate-blessing-duration', async (event, params) => {
   }
   
   try {
-    const { calculateBlessingDuration } = await import('../src/lib/synchronicity-engine.js')
+    const { calculateBlessingDuration } = await import('../dist/lib/synchronicity-engine.js')
     
     const duration = await calculateBlessingDuration({
       blessingId: params.blessingId,
@@ -794,7 +794,7 @@ ipcMain.handle('calculate-gratitude-potential', async (event, params) => {
   
   try {
     console.log('IPC: Calculating gratitude potential for:', params.intentionId)
-    const { calculateGratitudePotential } = await import('../src/lib/synchronicity-engine.js')
+    const { calculateGratitudePotential } = await import('../dist/lib/synchronicity-engine.js')
     
     const potential = await calculateGratitudePotential({
       intentionId: params.intentionId,
@@ -817,7 +817,7 @@ ipcMain.handle('create-offering', async (event, params) => {
   }
   
   try {
-    const { createOffering } = await import('../src/lib/synchronicity-engine.js')
+    const { createOffering } = await import('../dist/lib/synchronicity-engine.js')
     
     const result = await createOffering(params, databases)
     return { success: true, result }
@@ -833,7 +833,7 @@ ipcMain.handle('bid-on-offering', async (event, params) => {
   }
   
   try {
-    const { bidOnOffering } = await import('../src/lib/synchronicity-engine.js')
+    const { bidOnOffering } = await import('../dist/lib/synchronicity-engine.js')
     
     // Add databases to params object as expected by the function
     const result = await bidOnOffering({ ...params, databases })
@@ -844,13 +844,30 @@ ipcMain.handle('bid-on-offering', async (event, params) => {
   }
 })
 
+ipcMain.handle('withdraw-bid', async (event, params) => {
+  if (!databases) {
+    return { success: false, error: 'Not connected to databases' }
+  }
+  
+  try {
+    const { withdrawBid } = await import('../dist/lib/synchronicity-engine.js')
+    
+    // Add databases to params object as expected by the function
+    const result = await withdrawBid({ ...params, databases })
+    return { success: true, ...result }
+  } catch (error) {
+    console.error('Error withdrawing bid:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 ipcMain.handle('accept-offering-bids', async (event, params) => {
   if (!databases) {
     return { success: false, error: 'Not connected to databases' }
   }
   
   try {
-    const { acceptOfferingBids } = await import('../src/lib/synchronicity-engine.js')
+    const { acceptOfferingBids } = await import('../dist/lib/synchronicity-engine.js')
     
     const result = await acceptOfferingBids(params, databases)
     return { success: true, result }
@@ -867,7 +884,7 @@ ipcMain.handle('post-proof-of-service', async (event, params) => {
   }
   
   try {
-    const { postProofOfService } = await import('../src/lib/synchronicity-engine.js')
+    const { postProofOfService } = await import('../dist/lib/synchronicity-engine.js')
     
     const result = await postProofOfService({
       ...params,
@@ -886,7 +903,7 @@ ipcMain.handle('assign-blessing', async (event, params) => {
   }
   
   try {
-    const { assignBlessing } = await import('../src/lib/synchronicity-engine.js')
+    const { assignBlessing } = await import('../dist/lib/synchronicity-engine.js')
     
     const result = await assignBlessing({
       ...params,
@@ -938,6 +955,31 @@ ipcMain.handle('get-all-offerings', async () => {
   try {
     const allDocs = await databases.offerings.all()
     const offerings = allDocs.map(doc => ({ _id: doc.key, ...doc.value }))
+    
+    // Sort offerings chronologically by their display date/time
+    offerings.sort((a, b) => {
+      // More robust date parsing
+      let timeA, timeB
+      
+      try {
+        timeA = a.time ? new Date(a.time).getTime() : Infinity // Put undated offerings at the end
+        // Check if parsing failed (returns NaN)
+        if (isNaN(timeA)) timeA = Infinity
+      } catch (e) {
+        timeA = Infinity
+      }
+      
+      try {
+        timeB = b.time ? new Date(b.time).getTime() : Infinity // Put undated offerings at the end
+        // Check if parsing failed (returns NaN)
+        if (isNaN(timeB)) timeB = Infinity
+      } catch (e) {
+        timeB = Infinity
+      }
+      
+      return timeA - timeB // Earliest events first
+    })
+    
     return { success: true, data: offerings }
   } catch (error) {
     console.error('Error getting offerings:', error)
